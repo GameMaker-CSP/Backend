@@ -98,19 +98,28 @@ app.register_blueprint(friendship_api)
 
 # Startup initialization — create tables and seed default data on first run
 with app.app_context():
-    # Migrate games table: if the old schema (no 'name' column) is present, drop and recreate
+    # Never discard saved games as a side effect of starting the server.
     from sqlalchemy import inspect, text
     _inspector = inspect(db.engine)
     if 'games' in _inspector.get_table_names():
         _cols = [c['name'] for c in _inspector.get_columns('games')]
         if 'name' not in _cols:
-            db.session.execute(text('DROP TABLE games'))
-            db.session.commit()
+            raise RuntimeError(
+                "Legacy games schema detected. Back up the database and migrate it "
+                "before starting this version; no saved games have been deleted."
+            )
     db.create_all()   # creates any missing tables (including new games schema)
     if User.query.count() == 0:
         initUsers()   # only seed on first run — avoids duplicate/integrity errors on restart
     initJokes()
     ensure_admin()    # guarantee admin superuser exists with dev mode on
+
+
+@app.get('/api/health')
+def health():
+    """Confirm that the API and its configured database are reachable."""
+    db.session.execute(text('SELECT 1'))
+    return jsonify(status='ok', service='gamemaker-backend')
 
 # Tell Flask-Login the view function name of your login route
 login_manager.login_view = "login"
@@ -375,7 +384,8 @@ app.cli.add_command(custom_cli)
         
 # this runs the flask application on the development server
 if __name__ == "__main__":
-    host = "0.0.0.0"
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')
     port = app.config['FLASK_PORT']
     print(f"** Server running: http://localhost:{port}")
-    socketio.run(app, debug=True, host=host, port=port, use_reloader=False, allow_unsafe_werkzeug=True)
+    debug = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    socketio.run(app, debug=debug, host=host, port=port, use_reloader=False, allow_unsafe_werkzeug=True)

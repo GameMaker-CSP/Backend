@@ -437,7 +437,6 @@ class UserAPI:
                                 path='/',
                                 samesite='Lax'
                             )
-                        print(f"Token set: {token}")
                         return resp 
                     except Exception as e:
                         return {

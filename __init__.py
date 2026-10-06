@@ -120,7 +120,7 @@ app.config['DB_USERNAME'] = DB_USERNAME
 app.config['DB_PASSWORD'] = DB_PASSWORD
 app.config['SQLALCHEMY_DATABASE_NAME'] = dbName
 app.config['SQLALCHEMY_DATABASE_STRING'] = dbString
-app.config['SQLALCHEMY_DATABASE_URI'] = dbURI
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or dbURI
 app.config['SQLALCHEMY_BACKUP_URI'] = backupURI
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -159,4 +159,3 @@ app.config['KASM_API_KEY_SECRET'] = os.environ.get('KASM_API_KEY_SECRET') or Non
 # GROQ API settings
 app.config['GROQ_SERVER'] = os.environ.get('GROQ_SERVER') or 'https://api.groq.com/openai/v1/chat/completions'
 app.config['GROQ_API_KEY'] = os.environ.get('GROQ_API_KEY') or None
-
