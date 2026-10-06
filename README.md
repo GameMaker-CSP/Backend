@@ -7,7 +7,7 @@ This is the Flask REST API server for UESL. It provides authentication, user man
 - **API base**: `https://uesl.opencodingsociety.com`
 - **Local dev port**: `8424`
 - **Socket.IO port**: `8501` (separate Docker service)
-- **Frontend repo**: [MalwareMadness](https://github.com/unified-esports-league/MalwareMadness) — Jekyll + GitHub Pages
+- **Frontend repo**: [GameMaker-CSP/Frontend](https://github.com/GameMaker-CSP/Frontend) — Jekyll + GitHub Pages
 - **Live site**: https://ueslhub.opencodingsociety.com
 
 ---
@@ -60,14 +60,14 @@ These are the natural next features in priority order:
 ### Running Locally
 
 ```bash
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # fill in your API keys
-python scripts/db_init.py
-python main.py         # http://localhost:8424
+bash run_backend.sh    # http://localhost:8424
 ```
 
-See [Environment Variables](#environment-variables) for required `.env` keys.
+Run `bash run_frontend.sh` in the sibling `Frontend` folder in another terminal.
+Follow the [local teacher demo](https://github.com/GameMaker-CSP/Frontend/blob/main/docs/LOCAL_DEMO.md)
+for login and save/load instructions. The historical feature list above is not
+a verification of cloud services in this fork; this demo covers password login
+and the game save/load pipeline.
 
 ---
 
@@ -170,35 +170,32 @@ MalwareMadness-backend/
 ### Setup
 
 ```bash
-# 1. Clone and enter the project
-git clone https://github.com/unified-esports-league/MalwareMadness-backend.git
-cd MalwareMadness-backend
-
-# 2. Create and activate a virtual environment
-python -m venv venv
-source venv/bin/activate       # macOS/Linux
-# venv\Scripts\activate        # Windows
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Create your .env file (see Environment Variables section)
-cp .env.example .env
-# edit .env with your actual keys
-
-# 5. Initialize the database
-python scripts/db_init.py
-
-# 6. Run the server
-python main.py
+git clone https://github.com/GameMaker-CSP/Backend.git
+cd Backend
+bash run_backend.sh
 ```
 
-Server starts at **http://localhost:8424**.
+The script creates `.venv`, installs requirements on first run, generates a
+random local secret in `.env` only if missing, and starts on the loopback
+interface at **http://localhost:8424**. Existing environment files and database
+rows are preserved. A legacy incompatible games table causes an explicit
+startup error; back up and migrate it instead of deleting it.
+
+The `.env.example` defaults seed the local demo user `demo` with password
+`GameMakerDemo-2026`. No email or AI keys are required for this password-login
+demo. Check **http://localhost:8424/api/health** for `status: ok`.
+
+After editing requirements, run `.venv/bin/python -m pip install -r requirements.txt`.
+Run the isolated integration checks with:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p 'test_local_pipeline.py'
+```
 
 ### VSCode Setup
 
 1. Open the project in VSCode: `code .`
-2. **Cmd/Ctrl+Shift+P** → "Python: Select Interpreter" → choose `./venv/bin/python`
+2. **Cmd/Ctrl+Shift+P** → "Python: Select Interpreter" → choose `./.venv/bin/python`
 3. Install the **SQLite3 Editor** extension to browse `instance/volumes/user_management.db`
 4. Run/debug `main.py` with the Play button
 
@@ -206,7 +203,9 @@ Server starts at **http://localhost:8424**.
 
 ## Environment Variables
 
-Create a `.env` file in the project root. These are the only variables you need to get the platform running:
+`run_backend.sh` creates a local `.env` from `.env.example` when absent.
+Keep this file private. The additional inherited settings below are for
+optional cloud features or deployment; they are not required for the local demo:
 
 ```env
 # --- Admin account (seeded on first db_init) ---
