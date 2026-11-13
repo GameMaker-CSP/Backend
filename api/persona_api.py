@@ -211,7 +211,10 @@ class PersonaAPI:
                 return jsonify(persona.read())
             else:
                 # Get all personas
-                personas = Persona.query.all()
+                query = Persona.query
+                if request.args.get('collection') == 'gamemaker':
+                    query = query.filter(Persona._alias.startswith('gm-'))
+                personas = query.all()
                 json_ready = [persona.read() for persona in personas]
                 return jsonify(json_ready)
     

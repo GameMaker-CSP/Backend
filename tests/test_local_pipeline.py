@@ -82,6 +82,57 @@ class LocalPipelineTests(unittest.TestCase):
         self.assertEqual(owner.delete('/api/authenticate').status_code, 200)
         self.assertEqual(owner.get('/api/game/list').status_code, 401)
 
+    def test_login_page_session_and_profile_persistence(self):
+        client = app.test_client()
+        uid = 'profile-pipeline'
+        created = client.post('/api/user', json={
+            'name': 'Profile Before', 'uid': uid, 'password': 'Profile-Test-2026',
+        })
+        self.assertIn(created.status_code, (200, 201))
+        self.assertEqual(client.put('/api/user', json={'name': 'Blocked'}).status_code, 401)
+        invalid = client.post('/api/otp/send', json={'uid': uid, 'password': 'wrong'})
+        self.assertEqual(invalid.status_code, 401)
+        login = client.post('/api/otp/send', json={'uid': uid, 'password': 'Profile-Test-2026'})
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(login.json['user']['uid'], uid)
+        saved = client.put('/api/user', json={'name': 'Profile After'})
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json['name'], 'Profile After')
+        self.assertEqual(client.get('/api/id').json['name'], 'Profile After')
+        self.assertEqual(client.delete('/api/authenticate').status_code, 200)
+        self.assertEqual(client.get('/api/id').status_code, 401)
+
+    def test_ocs_survey_persists_and_is_private_to_the_account(self):
+        owner, other = app.test_client(), app.test_client()
+        self.assertEqual(owner.get('/api/user/personas').status_code, 401)
+        for client, uid in ((owner, 'survey-owner'), (other, 'survey-other')):
+            self.assertIn(client.post('/api/user', json={
+                'name': uid, 'uid': uid, 'password': 'Survey-Test-2026',
+            }).status_code, (200, 201))
+            self.assertEqual(client.post('/api/otp/send', json={
+                'uid': uid, 'password': 'Survey-Test-2026',
+            }).status_code, 200)
+        catalogue = owner.get('/api/persona?collection=gamemaker').json
+        self.assertEqual(len(catalogue), 16)
+        self.assertTrue(all(item['alias'].startswith('gm-') for item in catalogue))
+        categories = {item['category'] for item in catalogue}
+        self.assertEqual(categories, {'student', 'social', 'achievement', 'fantasy'})
+        picks = {}
+        for category in categories:
+            options = [item for item in catalogue if item['category'] == category]
+            for option in options[:2]:
+                saved = owner.post('/api/user/persona', json={'persona_id': option['id']})
+                self.assertIn(saved.status_code, (200, 201))
+                picks[category] = option['id']
+        owner.delete('/api/authenticate')
+        self.assertEqual(owner.post('/api/otp/send', json={
+            'uid': 'survey-owner', 'password': 'Survey-Test-2026',
+        }).status_code, 200)
+        saved = owner.get('/api/user/personas').json
+        self.assertEqual(saved['total_selected'], 4)
+        self.assertEqual({k: v['persona_id'] for k, v in saved['personas'].items()}, picks)
+        self.assertEqual(other.get('/api/user/personas').json['total_selected'], 0)
+
     def test_legacy_database_is_never_deleted_on_startup(self):
         database = Path(TEST_DIRECTORY.name) / 'legacy.db'
         with sqlite3.connect(database) as connection:

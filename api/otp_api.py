@@ -35,12 +35,12 @@ def _issue_jwt_response(user):
         resp.set_cookie(
             current_app.config["JWT_TOKEN_NAME"], token,
             max_age=43200, secure=True, httponly=True,
-            path='/', samesite='None', domain='.opencodingsociety.com'
+            path='/', samesite='Lax', domain=None
         )
     else:
         resp.set_cookie(
             current_app.config["JWT_TOKEN_NAME"], token,
-            max_age=43200, secure=False, httponly=False,
+            max_age=43200, secure=False, httponly=True,
             path='/', samesite='Lax'
         )
     return resp

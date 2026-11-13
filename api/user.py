@@ -424,8 +424,8 @@ class UserAPI:
                                 secure=True,
                                 httponly=True,
                                 path='/',
-                                samesite='None',
-                                domain='.opencodingsociety.com'
+                                samesite='Lax',
+                                domain=None
                             )
                         else:
                             resp.set_cookie(
@@ -433,7 +433,7 @@ class UserAPI:
                                 token,
                                 max_age=43200,  # 12 hours in seconds
                                 secure=False,
-                                httponly=False,  # Set to True for more security if JS access not needed
+                                httponly=True,
                                 path='/',
                                 samesite='Lax'
                             )
@@ -468,8 +468,8 @@ class UserAPI:
                     secure=True,
                     httponly=True,
                     path='/',
-                    samesite='None',
-                    domain='.opencodingsociety.com'
+                    samesite='Lax',
+                    domain=None
                 )
             else:
                 resp.set_cookie(
@@ -477,7 +477,7 @@ class UserAPI:
                     '',
                     max_age=0,
                     secure=False,
-                    httponly=False,
+                    httponly=True,
                     path='/',
                     samesite='Lax'
                 )

@@ -1,0 +1,98 @@
+[
+  {
+    "alias": "gm-student-guided",
+    "category": "student",
+    "title": "Show me the steps",
+    "description": "I would like a short, guided introduction."
+  },
+  {
+    "alias": "gm-student-explore",
+    "category": "student",
+    "title": "Let me explore",
+    "description": "I like trying things and finding out what happens."
+  },
+  {
+    "alias": "gm-student-together",
+    "category": "student",
+    "title": "Start with someone",
+    "description": "I would like to explore with a friend, family member, or helper."
+  },
+  {
+    "alias": "gm-student-play-first",
+    "category": "student",
+    "title": "Play a game first",
+    "description": "I would like to play before making my own game."
+  },
+  {
+    "alias": "gm-social-maze",
+    "category": "social",
+    "title": "Mazes and puzzles",
+    "description": "I like finding paths and solving puzzles."
+  },
+  {
+    "alias": "gm-social-racing",
+    "category": "social",
+    "title": "Racing",
+    "description": "I like cars, tracks, and racing challenges."
+  },
+  {
+    "alias": "gm-social-worlds",
+    "category": "social",
+    "title": "Open worlds",
+    "description": "I like exploring places and creating adventures."
+  },
+  {
+    "alias": "gm-social-unsure",
+    "category": "social",
+    "title": "Not sure yet",
+    "description": "I would like to try a few different games."
+  },
+  {
+    "alias": "gm-achievement-fun",
+    "category": "achievement",
+    "title": "Have fun",
+    "description": "I want to relax and enjoy playing."
+  },
+  {
+    "alias": "gm-achievement-create",
+    "category": "achievement",
+    "title": "Make my own game",
+    "description": "I want to turn an idea into a game."
+  },
+  {
+    "alias": "gm-achievement-connect",
+    "category": "achievement",
+    "title": "Play together",
+    "description": "I want to share games and spend time with others."
+  },
+  {
+    "alias": "gm-achievement-learn",
+    "category": "achievement",
+    "title": "Learn something new",
+    "description": "I want to build confidence by trying new things."
+  },
+  {
+    "alias": "gm-fantasy-instructions",
+    "category": "fantasy",
+    "title": "Clear instructions",
+    "description": "Short steps and examples would help me."
+  },
+  {
+    "alias": "gm-fantasy-large",
+    "category": "fantasy",
+    "title": "Easy-to-see controls",
+    "description": "Larger buttons and clear labels would help me."
+  },
+  {
+    "alias": "gm-fantasy-pace",
+    "category": "fantasy",
+    "title": "Time to go at my own pace",
+    "description": "I would like to take my time and try again."
+  },
+  {
+    "alias": "gm-fantasy-support",
+    "category": "fantasy",
+    "title": "Someone to help",
+    "description": "I would like help from a friend, family member, or helper."
+  }
+]

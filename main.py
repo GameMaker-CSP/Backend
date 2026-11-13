@@ -70,8 +70,9 @@ app.config['KASM_API_KEY_SECRET'] = os.getenv('KASM_API_KEY_SECRET')
 
 
 # register URIs for api endpoints
-app.register_blueprint(python_exec_api)
-app.register_blueprint(javascript_exec_api)
+if os.environ.get('DEPLOYMENT_MODE', 'false').lower() != 'true':
+    app.register_blueprint(python_exec_api)
+    app.register_blueprint(javascript_exec_api)
 app.register_blueprint(user_api)
 app.register_blueprint(section_api)
 app.register_blueprint(persona_api)
@@ -111,6 +112,8 @@ with app.app_context():
     db.create_all()   # creates any missing tables (including new games schema)
     if User.query.count() == 0:
         initUsers()   # only seed on first run — avoids duplicate/integrity errors on restart
+    from model.gamemaker_personas import init_gamemaker_personas
+    init_gamemaker_personas()
     initJokes()
     ensure_admin()    # guarantee admin superuser exists with dev mode on
 

@@ -43,3 +43,6 @@ coverage.xml
 # Docs / misc
 *.md
 LICENSE
+
+# All runtime state stays outside the image.
+instance/

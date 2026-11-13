@@ -12,6 +12,14 @@ import os
 load_dotenv()
 
 
+# Deployment must never fall back to the classroom demonstration credentials.
+DEPLOYMENT_MODE = os.environ.get('DEPLOYMENT_MODE', 'false').lower() == 'true'
+if DEPLOYMENT_MODE:
+    required = ('SECRET_KEY', 'DEFAULT_PASSWORD', 'ADMIN_PASSWORD',
+                'TEACHER_PASSWORD', 'USER_PASSWORD', 'MY_PASSWORD')
+    if any(len(os.environ.get(key, '')) < 20 for key in required):
+        raise RuntimeError('Deployment requires generated secrets of at least 20 characters.')
+
 # Setup of key Flask object (app)
 app = Flask(__name__)
 
@@ -31,7 +39,7 @@ login_manager.init_app(app)
 cors = CORS(
    app,
    supports_credentials=True,
-   origins=[
+   origins=[origin.strip() for origin in os.environ['CORS_ORIGINS'].split(',') if origin.strip()] if os.environ.get('CORS_ORIGINS') else [
        'http://localhost:4700',
        'http://127.0.0.1:4700',
        'http://localhost:4500',
@@ -59,7 +67,10 @@ def handle_preflight():
 
 
 # Socket.IO for real-time multiplayer
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading', logger=False, engineio_logger=False)
+socketio = SocketIO(app, cors_allowed_origins=None if DEPLOYMENT_MODE else [
+    f'http://{host}:{port}' for host in ('localhost', '127.0.0.1')
+    for port in (4000, 4500, 4599, 4600, 4700)
+], async_mode='threading', logger=False, engineio_logger=False)
 
 # Admin Defaults
 app.config['ADMIN_USER'] = os.environ.get('ADMIN_USER') or 'Admin Name'
@@ -94,6 +105,9 @@ JWT_TOKEN_NAME = os.environ.get('JWT_TOKEN_NAME') or 'jwt_python_flask'
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SESSION_COOKIE_NAME'] = SESSION_COOKIE_NAME
 app.config['JWT_TOKEN_NAME'] = JWT_TOKEN_NAME
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('IS_PRODUCTION', 'false').lower() == 'true'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 
 # Database settings
