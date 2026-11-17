@@ -6,10 +6,10 @@ Run these in Cockpit Terminal on the Docker host. Keep the current TLS certifica
 
    ```bash
    docker ps --filter publish=8540 --format 'table {{.Names}}\t{{.Ports}}'
-   docker inspect --format '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' NAME_FROM_ABOVE
+   docker inspect --format 'directory={{ index .Config.Labels "com.docker.compose.project.working_dir" }} service={{ index .Config.Labels "com.docker.compose.service" }} config={{ index .Config.Labels "com.docker.compose.project.config_files" }}' NAME_FROM_ABOVE
    ```
 
-2. Change into the printed directory. Confirm it is the GameMaker-CSP/Backend checkout on main with the root docker-compose.yml that maps 8540 to 8424. If it differs, identify the active checkout before rebuilding.
+2. Change into the printed directory. Verify the remote is GameMaker-CSP/Backend and the branch is main. For service `web`, use the root checkout with `docker-compose.yml`. For service `backend` using `deploy/compose.yml`, work in the checkout's `deploy` directory, which has its own `.env`. If the output describes a different stack, identify the active checkout before rebuilding.
 
    ```bash
    git remote get-url origin
@@ -18,9 +18,9 @@ Run these in Cockpit Terminal on the Docker host. Keep the current TLS certifica
    sudoedit .env
    ```
 
-   Set `IS_PRODUCTION=true`. If `CORS_ORIGINS` already exists, append `https://ueslgame.opencodingsociety.com` to its comma-separated list. With no override, the new Flask default includes this origin. Keep existing secrets and database settings.
+   Set `IS_PRODUCTION=true`. If `CORS_ORIGINS` already exists, append `https://ueslgame.opencodingsociety.com` to its comma-separated list. With no override, the new Flask default includes this origin. Accounts that use emailed codes require working `SMTP_USER` and `SMTP_PASSWORD` settings. Keep existing secrets and database settings.
 
-3. Rebuild only the UESL web service. Use `docker-compose` in place of `docker compose` on older installations.
+3. Rebuild the running service. For service `web`, run the first command from the root checkout. For service `backend`, use `docker compose -f compose.yml up -d --build --no-deps backend` from the `deploy` directory instead. Use `docker-compose` in place of `docker compose` on older installations.
 
    ```bash
    docker compose up -d --build --no-deps web
@@ -33,9 +33,10 @@ Run these in Cockpit Terminal on the Docker host. Keep the current TLS certifica
 
    Wait for health to report ok. Check for the exact frontend origin and `Access-Control-Allow-Credentials: true` on OPTIONS before proceeding.
 
-4. Install the API location and identify the existing HTTPS site file.
+4. Install the API location from the root of the checkout and identify the existing HTTPS site file.
 
    ```bash
+   cd "$(git rev-parse --show-toplevel)"
    sudo install -m 0644 deploy/ueslgame-api-location.conf /etc/nginx/snippets/ueslgame-api-location.conf
    sudo grep -lF 'ueslgame-api.opencodingsociety.com' /etc/nginx/sites-enabled/*
    ```
