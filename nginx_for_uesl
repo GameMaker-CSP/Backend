@@ -3,9 +3,11 @@ server {
     listen [::]:80;
     server_name ueslgame-api.opencodingsociety.com;
 
-    # Proxy Socket.IO connections to 8501
+    include /etc/nginx/snippets/ueslgame-api-location.conf;
+
+    # Proxy Socket.IO connections to the published host port
     location /socket.io/ {
-        proxy_pass http://localhost:8501;
+        proxy_pass http://127.0.0.1:8541;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -13,31 +15,9 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Proxy all other traffic to Flask app on 8424
     location / {
-        proxy_pass http://localhost:8540;
-        proxy_http_version 1.1;
+        proxy_pass http://127.0.0.1:8540;
         proxy_set_header Host $host;
-
-        set $cors_origin "";
-        if ($http_origin ~* "^https://(.*\.)?uesl\.io$") {
-            set $cors_origin $http_origin;
-        }
-        if ($http_origin = "https://unified-esports-league.github.io") {
-            set $cors_origin $http_origin;
-        }
-        if ($http_origin = "https://ueslgame.opencodingsociety.com") {
-            set $cors_origin $http_origin;
-        }
-
-        add_header "Access-Control-Allow-Origin" "$cors_origin" always;
-        add_header "Access-Control-Allow-Credentials" "true" always;
-
-        if ($request_method = OPTIONS) {
-            add_header "Access-Control-Allow-Methods" "GET, POST, PUT, DELETE, OPTIONS, HEAD" always;
-            add_header "Access-Control-Allow-MaxAge" 600 always;
-            add_header "Access-Control-Allow-Headers" "Authorization, Origin, X-Origin, X-Requested-With, Content-Type, Accept" always;
-            return 204;
-        }
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }

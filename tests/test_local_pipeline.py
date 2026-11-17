@@ -24,7 +24,7 @@ class LocalPipelineTests(unittest.TestCase):
         response = client.get('/api/health')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['status'], 'ok')
-        for origin in ('http://localhost:4700', 'http://127.0.0.1:4700'):
+        for origin in ('http://localhost:4700', 'http://127.0.0.1:4700', 'https://ueslgame.opencodingsociety.com'):
             with self.subTest(origin=origin):
                 response = client.options('/api/game/save', headers={
                     'Origin': origin,
