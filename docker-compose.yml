@@ -5,6 +5,8 @@ services:
   web:
     image: flask_open
     build: .
+    environment:
+      JWT_TOKEN_NAME: gamemaker_auth
     env_file:
       - .env
     ports:
