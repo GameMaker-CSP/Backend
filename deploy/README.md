@@ -1,7 +1,7 @@
 # GameMaker deployment
 
 Keep Backend and Frontend side by side. This stack owns only loopback ports
-8430 (Flask) and 8431 (website); it does not change the old UESL stack.
+8540 (Flask) and 8431 (website); it does not change the old UESL stack.
 The frontend proxies /api/ and /socket.io/ to its backend. Browser authentication
 uses host-only cookies. The unsafe inherited /run/ endpoints are unavailable.
 One Gunicorn worker keeps in-memory Socket.IO room state consistent.

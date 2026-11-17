@@ -5,10 +5,10 @@
 This is the Flask REST API server for UESL. It provides authentication, user management, AI chat (Groq + Gemini), game scoring, social features (friends, presence, microblog), multiplayer Socket.IO, classroom management, and KASM virtual desktop integration.
 
 - **API base**: `https://uesl.opencodingsociety.com`
-- **Local dev port**: `8424`
+- **Local dev port**: `8540`
 - **Socket.IO port**: `8501` (separate Docker service)
 - **Frontend repo**: [GameMaker-CSP/Frontend](https://github.com/GameMaker-CSP/Frontend) — Jekyll + GitHub Pages
-- **Live site**: https://ueslhub.opencodingsociety.com
+- **Live site**: https://ueslgame.opencodingsociety.com
 
 ---
 
@@ -37,7 +37,7 @@ This is the Flask REST API server for UESL. It provides authentication, user man
 
 ### Key Architecture Notes
 
-- **Two processes in production**: `web` (Flask/SocketIO, port 8424) and `socketio` (standalone leaderboard, port 8501). Both defined in `docker-compose.yml`.
+- **Two processes in production**: `web` (Flask/SocketIO, port 8540) and `socketio` (standalone leaderboard, port 8501). Both defined in `docker-compose.yml`.
 - **Database**: SQLite in dev (`instance/volumes/user_management.db`), MySQL on AWS RDS in prod. Toggle with `IS_PRODUCTION` env var.
 - **Auth flow**: every protected endpoint uses `@token_required(role)` from `api/authorize.py`. Checks JWT cookie → Bearer header → Flask-Login session, in that order.
 - **OTP store is in-memory** (`_otp_store` dict in `api/otp_api.py`) — it does not survive a server restart. If you restart the server mid-OTP flow, the user must re-request.
@@ -60,7 +60,7 @@ These are the natural next features in priority order:
 ### Running Locally
 
 ```bash
-bash run_backend.sh    # http://localhost:8424
+bash run_backend.sh    # http://localhost:8540
 ```
 
 Run `bash run_frontend.sh` in the sibling `Frontend` folder in another terminal.
@@ -119,7 +119,7 @@ MalwareMadness-backend/
 ├── main.py                  # Entry point — registers blueprints, startup init
 ├── __init__.py              # Flask app factory — config, CORS, DB, Socket.IO, login
 ├── requirements.txt
-├── docker-compose.yml       # Two services: web (8424) and socketio (8501)
+├── docker-compose.yml       # Two services: web (8540) and socketio (8501)
 ├── Dockerfile
 ├── .env                     # Secrets — see Environment Variables section
 │
@@ -177,13 +177,13 @@ bash run_backend.sh
 
 The script creates `.venv`, installs requirements on first run, generates a
 random local secret in `.env` only if missing, and starts on the loopback
-interface at **http://localhost:8424**. Existing environment files and database
+interface at **http://localhost:8540**. Existing environment files and database
 rows are preserved. A legacy incompatible games table causes an explicit
 startup error; back up and migrate it instead of deleting it.
 
 The `.env.example` defaults seed the local demo user `demo` with password
 `GameMakerDemo-2026`. No email or AI keys are required for this password-login
-demo. Check **http://localhost:8424/api/health** for `status: ok`.
+demo. Check **http://localhost:8540/api/health** for `status: ok`.
 
 After editing requirements, run `.venv/bin/python -m pip install -r requirements.txt`.
 Run the isolated integration checks with:
@@ -385,7 +385,7 @@ services:
   web:
     image: flask_open
     ports:
-      - "8424:8424"
+      - "8540:8424"
     volumes:
       - ./instance:/app/instance   # persists SQLite DB
   socketio:
@@ -411,7 +411,7 @@ docker-compose down
 ### Production setup (Ubuntu + Nginx)
 
 Nginx reverse proxies:
-- `https://uesl.opencodingsociety.com` → Flask on port 8424
+- `https://uesl.opencodingsociety.com` → Flask on port 8540
 - `wss://uesl.opencodingsociety.com:8501` → Socket.IO on port 8501
 
 ---

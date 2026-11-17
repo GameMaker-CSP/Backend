@@ -5,7 +5,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8424:8424"
+      - "8540:8540"
     volumes:
       # Persists the SQLite database and uploads between container restarts
       - ./instance:/app/instance

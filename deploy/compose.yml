@@ -12,7 +12,7 @@ services:
       JWT_TOKEN_NAME: gamemaker_auth
       SESSION_COOKIE_NAME: gamemaker_session
     ports:
-      - "127.0.0.1:8430:8424"
+      - "127.0.0.1:8540:8424"
     volumes:
       - backend-data:/app/instance
     restart: unless-stopped

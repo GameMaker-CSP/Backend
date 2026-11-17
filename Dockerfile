@@ -25,7 +25,7 @@ RUN mkdir -p /app/instance/volumes && useradd -m -u 1000 appuser && \
 # Switch to non-privileged user
 USER appuser
 
-# Port must match FLASK_PORT in .env and the docker-compose mapping
+# Container listens on 8424; compose publishes it on host port 8540
 ENV FLASK_ENV=production \
     GUNICORN_CMD_ARGS="--workers=1 --threads=8 --bind=0.0.0.0:8424 --timeout=60 --access-logfile -"
 
