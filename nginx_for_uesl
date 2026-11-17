@@ -1,7 +1,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name ueslgame.opencodingsociety.com;
+    server_name ueslgame-api.opencodingsociety.com;
 
     # Proxy Socket.IO connections to 8501
     location /socket.io/ {
@@ -26,7 +26,7 @@ server {
         if ($http_origin = "https://unified-esports-league.github.io") {
             set $cors_origin $http_origin;
         }
-        if ($http_origin = "https://uesl.opencodingsociety.com") {
+        if ($http_origin = "https://ueslgame.opencodingsociety.com") {
             set $cors_origin $http_origin;
         }
 

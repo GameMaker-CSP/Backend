@@ -4,7 +4,7 @@
 
 This is the Flask REST API server for UESL. It provides authentication, user management, AI chat (Groq + Gemini), game scoring, social features (friends, presence, microblog), multiplayer Socket.IO, classroom management, and KASM virtual desktop integration.
 
-- **API base**: `https://uesl.opencodingsociety.com`
+- **API base**: `https://ueslgame-api.opencodingsociety.com`
 - **Local dev port**: `8540`
 - **Socket.IO port**: `8501` (separate Docker service)
 - **Frontend repo**: [GameMaker-CSP/Frontend](https://github.com/GameMaker-CSP/Frontend) — Jekyll + GitHub Pages
