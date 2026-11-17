@@ -1,3 +1,6 @@
+# UESL stack (root compose, used for deployment).
+# deploy/compose.yml is the newer upstream stack. Run one at a time: both
+# publish host port 8540, so the second fails with "port is already allocated".
 services:
   web:
     image: flask_open
@@ -5,7 +8,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8540:8540"
+      - "8540:8424"
     volumes:
       # Persists the SQLite database and uploads between container restarts
       - ./instance:/app/instance
