@@ -1,136 +1,38 @@
-<!-- Navigation Bar from bootstrap
-This HTML is setup as a fragment allowing it to be "included" by other HTML files via Jinja2
--->
-    <style>
-        .mm-navbar {
-            background-color: #0a0a0a !important;
-            border-bottom: 1px solid #00ff4155;
-            font-family: 'Share Tech Mono', monospace;
-        }
-        .mm-navbar .navbar-brand {
-            color: #00ff41 !important;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 900;
-            font-size: 1.1rem;
-            letter-spacing: 2px;
-            text-shadow: 0 0 10px #00ff41;
-        }
-        .mm-navbar .nav-link {
-            color: #aaffbb !important;
-            transition: color 0.2s, text-shadow 0.2s;
-        }
-        .mm-navbar .nav-link:hover {
-            color: #00ff41 !important;
-            text-shadow: 0 0 6px #00ff41;
-        }
-        .mm-navbar .dropdown-menu {
-            background-color: #0d1117 !important;
-            border: 1px solid #00ff4144 !important;
-        }
-        .mm-navbar .dropdown-item {
-            color: #aaffbb !important;
-            font-family: 'Share Tech Mono', monospace;
-        }
-        .mm-navbar .dropdown-item:hover {
-            background-color: #00ff4122 !important;
-            color: #00ff41 !important;
-        }
-        .mm-search {
-            background-color: #0d1117;
-            border: 1px solid #00ff4144;
-            color: #00ff41;
-            font-family: 'Share Tech Mono', monospace;
-            padding: 2px 8px;
-            border-radius: 3px;
-            outline: none;
-        }
-        .mm-search::placeholder { color: #00ff4177; }
-        .mm-search:focus { border-color: #00ff41; box-shadow: 0 0 5px #00ff4155; }
-        .mm-user-link {
-            color: #aaffbb !important;
-            cursor: pointer;
-        }
-        .mm-user-link:hover { color: #00ff41 !important; }
-        .mm-login-link {
-            color: #aaffbb !important;
-            text-decoration: none;
-        }
-        .mm-login-link:hover { color: #00ff41 !important; }
-        .mm-skull {
-            font-size: 1.4rem;
-            margin-right: 6px;
-            filter: drop-shadow(0 0 6px #00ff41);
-        }
-    </style>
-    <nav class="navbar navbar-expand-lg mm-navbar">
-        <div class="container-fluid">
-            <div class="d-flex align-items-center gap-3">
-                <span class="mm-skull">&#9760;</span>
-                <a class="navbar-brand" href={{ url_for('index') }}>{{basename}}</a>
-
-                <div class="navbar-nav ms-2">
-                    <a class="nav-link" href={{ url_for('index') }}>Home</a>
-                    <div class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDarkDropdownMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                          Admin
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDarkDropdownMenuLink">
-                            <li><a class="dropdown-item" href={{ url_for('u2table') }}><i class="fas fa-users fa-sm me-1"></i> User Management</a></li>
-                            <li><a class="dropdown-item" href={{ url_for('kasm_users') }}><i class="fas fa-server fa-sm me-1"></i> Kasm User Report</a></li>
-                            <li><a class="dropdown-item" href={{ url_for('sections') }}><i class="fas fa-layer-group fa-sm me-1"></i> Sections</a></li>
-                            <li><a class="dropdown-item" href={{ url_for('persona') }}><i class="fas fa-user-secret fa-sm me-1"></i> Personas</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-flex align-items-center gap-3">
-                <!-- Search Box -->
-                <input id="search" type="search" class="mm-search" placeholder="&#128269; Search..." aria-label="Search" style="height:30px;">
-
-                {% if current_user.is_authenticated %}
-                    <div class="dropdown">
-                        <span class="dropdown-toggle mm-user-link" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-terminal fa-sm me-1"></i>{{ current_user.name }}
-                        </span>
-                        <ul class="dropdown-menu dropdown-menu-dark">
-                            <li>
-                                <div class="dropdown-item" style="font-size:0.8rem;">
-                                    <p style="margin-bottom:2px; color:#00ff41;"><strong>ID:</strong> {{current_user.uid}}</p>
-                                    <p style="margin-bottom:2px; color:#00ff41;"><strong>ROLE:</strong> {{current_user.role}}</p>
-                                </div>
-                            </li>
-                            <li><hr class="dropdown-divider" style="border-color:#00ff4133;"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt fa-sm me-1"></i> Logout</a></li>
-                        </ul>
-                    </div>
-                {% else %}
-                    <a href="{{ url_for('login') }}" class="mm-login-link"><i class="fas fa-sign-in-alt fa-sm me-1"></i> Login</a>
-                {% endif %}
-            </div>
-
-            <!-- Navigation bar JavaScript support -->
-            <script>
-                const search = document.getElementById('search');
-                const google = 'https://www.google.com/search?q=site%3A+';
-                const site = 'https://uesl.io';
-
-                function submitted(event) {
-                    if (event.key === 'Enter') {
-                        const reduction = 0.66;
-                        const w = Math.trunc(window.innerWidth*reduction);
-                        const h = Math.trunc(window.outerHeight*reduction);
-                        const l = Math.trunc(window.top.screenX + ((window.innerWidth - w)/2));
-                        const t = Math.trunc(window.top.screenY + ((window.outerHeight - h)/2));
-                        const location = "left=" + l + ", top=" + t + ", width=" + w + ", height=" + h;
-                        event.preventDefault();
-                        const url = google + site + '+' + search.value;
-                        const win = window.open(url, "Malware Madness Search", location);
-                        win.focus();
-                    }
-                }
-                search.addEventListener('keypress', submitted);
-            </script>
-
-        </div>
-    </nav>
+<nav class="navbar sticky-top border-bottom bg-body-tertiary" aria-label="Manager navigation">
+  <div class="container gap-2">
+    <a class="navbar-brand fw-bold me-auto" href="{{ url_for('index') }}">UESL <span class="fw-normal">Manager</span></a>
+    <button class="btn btn-sm btn-outline-secondary" id="themeSwitch" type="button">Light theme</button>
+    {% if current_user.is_authenticated %}
+    <div class="dropdown">
+      <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Data</button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        {% for endpoint, label in [('u2table','Accounts'), ('sections','Sections'), ('persona','Personas')] %}
+        <li><a class="dropdown-item" href="{{ url_for(endpoint) }}">{{ label }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="dropdown">
+      <button class="btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">{{ current_user.name }}</button>
+      <div class="dropdown-menu dropdown-menu-end">
+        <span class="dropdown-item-text small">{{ current_user.uid }} · {{ current_user.role }}</span>
+        <a class="dropdown-item" href="{{ url_for('logout') }}">Sign out</a>
+      </div>
+    </div>
+    {% else %}
+    <a class="btn btn-primary" href="{{ url_for('login') }}">Sign in</a>
+    {% endif %}
+  </div>
+</nav>
+<script>
+  const themeSwitch = document.getElementById("themeSwitch");
+  function setManagerTheme(theme) {
+    document.documentElement.dataset.bsTheme = theme;
+    themeSwitch.textContent = theme === "dark" ? "Light theme" : "Dark theme";
+  }
+  setManagerTheme(localStorage.getItem("uesl-manager-theme") === "light" ? "light" : "dark");
+  themeSwitch.addEventListener("click", () => {
+    const theme = document.documentElement.dataset.bsTheme === "dark" ? "light" : "dark";
+    setManagerTheme(theme);
+    localStorage.setItem("uesl-manager-theme", theme);
+  });
+</script>

@@ -1,245 +1,131 @@
 {% extends "layouts/base.html" %}
 
-{% block style %}
-<style>
-    /* --- Page header --- */
-    .mm-page-header {
-        font-family: 'Orbitron', sans-serif;
-        color: #00ff41;
-        font-size: 1.4rem;
-        letter-spacing: 3px;
-        text-shadow: 0 0 12px #00ff41;
-        margin-bottom: 4px;
-    }
-    .mm-page-sub { color: #00ff4188; font-size: 0.8rem; margin-bottom: 20px; }
-    .mm-cursor { animation: blink 1s step-end infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
-
-    /* --- Stats bar --- */
-    .mm-stats-bar { display: flex; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
-    .mm-stat-chip {
-        background: var(--mm-dark-panel);
-        border: 1px solid var(--mm-border);
-        padding: 6px 14px;
-        font-size: 0.72rem;
-        letter-spacing: 1px;
-        color: #aaffbb;
-    }
-    .mm-stat-chip span {
-        color: var(--mm-green);
-        font-family: 'Orbitron', sans-serif;
-        font-size: 0.95rem;
-        margin-left: 6px;
-    }
-    .mm-stat-chip.mm-stat-danger span { color: var(--mm-red); }
-
-    /* --- Role badges --- */
-    .mm-role-badge {
-        display: inline-block;
-        padding: 2px 9px;
-        font-size: 0.65rem;
-        letter-spacing: 1.5px;
-        font-family: 'Orbitron', sans-serif;
-        border: 1px solid;
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
-    .mm-role-admin   { color: #ff2442; border-color: #ff2442; background: #ff244215; }
-    .mm-role-teacher { color: #ffaa00; border-color: #ffaa00; background: #ffaa0015; }
-    .mm-role-user    { color: #00c832; border-color: #00c832; background: #00c83215; }
-
-    /* --- Status pills --- */
-    .mm-status-wrap { display: flex; flex-direction: column; gap: 4px; }
-    .mm-status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 0.65rem;
-        letter-spacing: 1px;
-        padding: 3px 8px;
-        border: 1px solid;
-        white-space: nowrap;
-        background: transparent;
-        font-family: 'Share Tech Mono', monospace;
-        line-height: 1;
-    }
-    .mm-pill-on     { color: #00ff41; border-color: #00ff4155; background: #00ff4110; }
-    .mm-pill-off    { color: #555;    border-color: #33333355; background: transparent; cursor: pointer; }
-    .mm-pill-danger { color: #ff2442; border-color: #ff244255; background: #ff244210; cursor: pointer; }
-    button.mm-status-pill:hover { opacity: 0.8; }
-    button.mm-status-pill:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* --- Avatar --- */
-    .mm-avatar {
-        width: 40px; height: 40px;
-        border: 1px solid #00ff4133;
-        object-fit: cover;
-        background: #0a0a0a;
-    }
-
-    /* --- Icon action buttons --- */
-    .mm-action-group { display: flex; gap: 5px; align-items: center; }
-    .mm-icon-btn {
-        background: transparent;
-        border: 1px solid;
-        width: 30px; height: 30px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.78rem;
-        cursor: pointer;
-        transition: background 0.15s, color 0.15s;
-        padding: 0;
-    }
-    .mm-icon-btn-edit   { color: #00ff41; border-color: #00ff41; }
-    .mm-icon-btn-edit:hover   { background: #00ff41; color: #000; }
-    .mm-icon-btn-delete { color: #ff2442; border-color: #ff2442; }
-    .mm-icon-btn-delete:hover { background: #ff2442; color: #000; }
-    .mm-icon-btn-reset  { color: #ffaa00; border-color: #ffaa00; }
-    .mm-icon-btn-reset:hover  { background: #ffaa00; color: #000; }
-
-    /* --- Table column sizing --- */
-    #userTable td { vertical-align: middle; }
-    #userTable th { font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 1.5px; }
-
-    /* --- Edit modal identity header --- */
-    .mm-modal-uid {
-        font-size: 0.7rem;
-        color: #00ff4166;
-        letter-spacing: 2px;
-        margin-top: 2px;
-    }
-    .mm-modal-avatar {
-        width: 48px; height: 48px;
-        border: 1px solid #00ff4133;
-        object-fit: cover;
-        background: #0a0a0a;
-    }
-
-    /* --- Confirm modal --- */
-    #confirmModal .modal-content { border-color: #ff244255 !important; }
-    .mm-confirm-icon { font-size: 2rem; text-align: center; margin-bottom: 10px; }
-    .mm-confirm-msg  { font-size: 0.88rem; color: #aaffbb; text-align: center; }
-    .mm-confirm-sub  { font-size: 0.72rem; color: #555; text-align: center; margin-top: 4px; }
-</style>
-{% endblock %}
-
 {% block body %}
-{% set admin_count   = user_data | selectattr('role', 'eq', 'Admin')   | list | length %}
-{% set teacher_count = user_data | selectattr('role', 'eq', 'Teacher') | list | length %}
-{% set user_count    = user_data | selectattr('role', 'eq', 'User')    | list | length %}
-{% set dev_on_count  = user_data | rejectattr('totp_enabled')           | list | length %}
 
 <div class="container mt-5">
-    <h1 class="mm-page-header">USER MANAGEMENT<span class="mm-cursor">_</span></h1>
-    <p class="mm-page-sub">// Manage registered agents and their access levels</p>
+    <h1>User Management</h1>
 
-    <!-- Stats bar -->
-    <div class="mm-stats-bar">
-        <div class="mm-stat-chip">TOTAL AGENTS <span>{{ user_data | length }}</span></div>
-        <div class="mm-stat-chip">ADMINS <span>{{ admin_count }}</span></div>
-        <div class="mm-stat-chip">TEACHERS <span>{{ teacher_count }}</span></div>
-        <div class="mm-stat-chip">USERS <span>{{ user_count }}</span></div>
-        <div class="mm-stat-chip mm-stat-danger">DEV MODE ON <span>{{ dev_on_count }}</span></div>
+    {% set is_staff = current_user.is_staff() %}
+
+    {% if is_staff %}
+    <details class="card p-3 mb-3">
+        <summary>Create a staff-managed account</summary>
+        <form id="staffCreate" class="row g-2 align-items-end mt-1">
+            <label class="col-md">Type<select class="form-select" name="accountType">{% for key, label in staff_account_types.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+            <label class="col-md">Name<input class="form-control" name="name" required></label>
+            <label class="col-md">User ID<input class="form-control" name="uid" required></label>
+            <label class="col-md">Initial password<input class="form-control" type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+            <div class="col-md-auto"><button class="btn btn-primary">Create account</button></div>
+        </form>
+        <small class="mt-2">Activate the new account when it is ready to use.</small>
+    </details>
+    <div class="card mb-3" id="guestWindow">
+        <div class="card-body d-flex flex-wrap align-items-center gap-3">
+            <div>
+                <strong>Guest Window</strong>:
+                {% if guest_window_closes %}
+                <span class="text-success">open until <span id="guestWindowCloses" data-closes="{{ guest_window_closes }}"></span></span>
+                {% else %}
+                <span class="text-secondary">closed</span>. Guests cannot sign up or come back.
+                {% endif %}
+            </div>
+            <label class="mb-0">Open for
+                <input type="number" id="guestWindowMinutes" class="form-control d-inline-block w-auto" min="1" max="{{ guest_window_max }}" value="{{ [60, guest_window_max]|min }}"> minutes (up to {{ guest_window_max }})
+            </label>
+            <button type="button" class="btn btn-success" id="guestWindowOpen">Open</button>
+            <button type="button" class="btn btn-outline-secondary" id="guestWindowClose"{% if not guest_window_closes %} disabled{% endif %}>Close</button>
+            <button type="button" class="btn btn-danger" id="guestDisable">Disable all guests now</button>
+        </div>
     </div>
+    {% endif %}
 
-    <!-- User table -->
-    <table class="table" id="userTable">
+    {% if is_staff %}
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3" id="accountFilters">
+        <div class="btn-group" role="group" aria-label="Filter by status">
+            <button type="button" class="btn btn-outline-secondary active" data-status="all">All</button>
+            <button type="button" class="btn btn-outline-secondary" data-status="true">Active</button>
+            <button type="button" class="btn btn-outline-secondary" data-status="false">Inactive</button>
+        </div>
+        <label class="mb-0">Role:
+            <select id="roleFilter" class="form-select d-inline-block w-auto">
+                <option value="">All</option>
+                {% for role in user_data|map(attribute='role')|unique|sort %}
+                <option value="{{ role }}">{{ role }}</option>
+                {% endfor %}
+            </select>
+        </label>
+    </div>
+    {% endif %}
+
+    <table class="table table-striped" id="userTable">
         <thead>
             <tr>
-                <th></th>
-                <th>AGENT</th>
-                <th>EMAIL</th>
-                <th>ROLE</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
+                <th>ID</th>
+                <th>UID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Profile Picture</th>
+                <th>Sections</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for user in user_data %}
-            {% if user.id == current_user.id or current_user.role == 'Admin' %}
-            {% set pfp_url = url_for('uploaded_file', filename=user.uid + '/' + user.pfp) if user.pfp else url_for('static', filename='assets/pythondb.png') %}
-            <tr id="user-{{ user.id }}"
-                data-id="{{ user.id }}"
-                data-uid="{{ user.uid }}"
-                data-name="{{ user.name }}"
-                data-email="{{ user.email }}"
-                data-pfp="{{ pfp_url }}">
-
-                <!-- Avatar -->
-                <td><img src="{{ pfp_url }}" class="mm-avatar" alt="{{ user.name }}"></td>
-
-                <!-- Agent: Name + UID -->
+            {% if user.id == current_user.id or is_staff %}
+            <tr id="user-{{ user.id }}" data-role="{{ user.role }}" data-active="{{ 'true' if user.is_active else 'false' }}">
+                <td>{{ user.id }}</td>
+                <td>{{ user.uid }}</td>
+                <td>{{ user.name }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.role }}</td>
                 <td>
-                    <div style="font-weight:bold; color:#00ff41;">{{ user.name }}</div>
-                    <div style="font-size:0.7rem; color:#00ff4166; letter-spacing:1px;">{{ user.uid }}</div>
-                </td>
-
-                <!-- Email -->
-                <td style="font-size:0.85rem;">{{ user.email }}</td>
-
-                <!-- Role badge -->
-                <td>
-                    {% if user.role == 'Admin' %}
-                    <span class="mm-role-badge mm-role-admin">Admin</span>
-                    {% elif user.role == 'Teacher' %}
-                    <span class="mm-role-badge mm-role-teacher">Teacher</span>
+                    {% if user.verification_state == 'active_verified' %}
+                    <span class="badge bg-success">Active</span>
+                    {% elif user.verification_state == 'active_verification_required' %}
+                    <span class="badge bg-warning text-dark">Active - verification required</span>
                     {% else %}
-                    <span class="mm-role-badge mm-role-user">User</span>
+                    <span class="badge bg-secondary">Inactive</span>
                     {% endif %}
                 </td>
-
-                <!-- Status: KASM pill + Dev Mode toggle -->
                 <td>
-                    <div class="mm-status-wrap">
-                        <!-- KASM (display only) -->
-                        <span class="mm-status-pill {% if user.kasm_server_needed %}mm-pill-on{% else %}mm-pill-off{% endif %}" style="cursor:default;">
-                            <i class="fas fa-server fa-xs"></i> KASM
-                        </span>
-                        <!-- Dev Mode toggle -->
-                        {% if current_user.role == 'Admin' %}
-                        <button class="mm-status-pill mm-dev-toggle {% if not user.totp_enabled %}mm-pill-danger{% else %}mm-pill-off{% endif %}"
-                                data-uid="{{ user.uid }}"
-                                data-totp="{{ 'true' if user.totp_enabled else 'false' }}"
-                                title="{{ 'DEV MODE ON — click to disable' if not user.totp_enabled else 'DEV MODE OFF — click to enable' }}">
-                            <i class="fas fa-bug fa-xs"></i>
-                            <span>{{ 'DEV ON' if not user.totp_enabled else 'DEV OFF' }}</span>
-                        </button>
-                        {% else %}
-                        <span class="mm-status-pill {% if not user.totp_enabled %}mm-pill-danger{% else %}mm-pill-off{% endif %}" style="cursor:default;">
-                            <i class="fas fa-bug fa-xs"></i> {{ 'DEV ON' if not user.totp_enabled else 'DEV OFF' }}
-                        </span>
-                        {% endif %}
-                    </div>
+                    {% if user.pfp and user.pfp != "default.png" %}
+                    <img src="{{ url_for('uploaded_file', filename=user.uid + '/' + user.pfp) }}"
+                         alt="Profile Picture"
+                         class="img-thumbnail"
+                         style="width: 50px; height: 50px;">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='assets/pythondb.png') }}"
+                         alt="Default Profile Picture"
+                         class="img-thumbnail"
+                         style="width: 50px; height: 50px;">
+                    {% endif %}
                 </td>
-
-                <!-- Actions -->
                 <td>
-                    <div class="mm-action-group">
-                        <button class="mm-icon-btn mm-icon-btn-edit edit-btn"
-                                title="Edit Agent"
-                                data-id="{{ user.id }}"
-                                data-uid="{{ user.uid }}"
-                                data-name="{{ user.name }}"
-                                data-email="{{ user.email }}"
-                                data-pfp="{{ pfp_url }}">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        {% if current_user.role == 'Admin' %}
-                        <button class="mm-icon-btn mm-icon-btn-reset reset-password-btn"
-                                title="Reset Password"
-                                data-id="{{ user.id }}"
-                                data-name="{{ user.name }}">
-                            <i class="fas fa-key"></i>
-                        </button>
-                        <button class="mm-icon-btn mm-icon-btn-delete delete-btn"
-                                title="Delete Agent"
-                                data-id="{{ user.id }}"
-                                data-name="{{ user.name }}">
-                            <i class="fas fa-skull"></i>
-                        </button>
-                        {% endif %}
-                    </div>
+                    {% for section in user.sections %}
+                    {{ section.abbreviation }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td>
+                    {% if is_staff and user.role_editable_by(current_user) %}
+                    <button class="btn btn-primary edit-btn" data-uid="{{ user.uid }}" data-role="{{ user.role }}">Change role</button>
+                    {% endif %}
+                    {% if is_staff %}
+                    {% if user.verification_due and user.role != "Guest" and (not user.is_admin() or current_user.is_admin()) %}
+                    <button class="btn btn-success status-btn" data-uid="{{ user.uid }}" data-action="verify"{% if user.verification_prompt_days %} data-prompt-days="{{ user.verification_prompt_days }}"{% endif %}>{{ 'Verify' if user.is_active else 'Activate' }}</button>
+                    {% endif %}
+                    {% if user.is_active and user.id != current_user.id and user.deactivation_blocker(current_user) is none %}
+                    <button class="btn btn-secondary status-btn" data-uid="{{ user.uid }}" data-action="deactivate">Deactivate</button>
+                    {% endif %}
+                    {% endif %}
+                    {% if current_user.is_admin() %}
+                    {% if user.deletion_blocker(current_user) is none %}
+                    <button class="btn btn-danger delete-btn" data-id="{{ user.id }}">Delete</button>
+                    {% endif %}
+                    <button class="btn btn-secondary details-btn" data-uid="{{ user.uid }}" data-name="{{ user.name }}" data-email="{{ user.email or '' }}">Edit details</button>
+                    <button class="btn btn-warning reset-password-btn" data-id="{{ user.id }}">Reset Password</button>
+                    {% endif %}
                 </td>
             </tr>
             {% endif %}
@@ -248,295 +134,229 @@
     </table>
 </div>
 
-<!-- Edit Modal -->
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+{% if is_staff %}
+{% if current_user.is_admin() %}
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsTitle" aria-hidden="true">
+    <div class="modal-dialog"><form id="detailsForm" class="modal-content">
+        <div class="modal-header"><h2 class="modal-title h5" id="detailsTitle">Edit account</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <label class="form-label w-100">Display name<input class="form-control" name="name" required></label>
+            <label class="form-label w-100">Email<input class="form-control" name="email" type="email"></label>
+            <label class="form-label w-100">New password (optional)<input class="form-control" name="password" type="password" minlength="8" autocomplete="new-password"></label>
+        </div>
+        <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary">Save changes</button></div>
+    </form></div>
+</div>
+{% endif %}
+<div class="modal fade" id="roleModal" tabindex="-1" aria-labelledby="roleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" style="font-family:'Orbitron',sans-serif;color:#00ff41;letter-spacing:2px;font-size:0.9rem;">
-                    <i class="fas fa-pen me-2"></i>EDIT AGENT
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="roleModalLabel">Change role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Identity header -->
-                <div class="d-flex align-items-center gap-3 mb-3 pb-3" style="border-bottom:1px solid #00ff4133;">
-                    <img id="editAvatar" src="" class="mm-modal-avatar" alt="Agent">
-                    <div>
-                        <div style="font-family:'Orbitron',sans-serif;font-size:0.82rem;color:#00ff41;" id="editDisplayName"></div>
-                        <div class="mm-modal-uid" id="editDisplayUid"></div>
-                    </div>
-                </div>
-                <input type="hidden" id="editUid">
-                <div class="mb-3">
-                    <label class="form-label" style="font-size:0.72rem;letter-spacing:1px;">NAME</label>
-                    <input type="text" class="form-control" id="editName" autocomplete="off">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" style="font-size:0.72rem;letter-spacing:1px;">EMAIL</label>
-                    <input type="email" class="form-control" id="editEmail" autocomplete="off">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" style="font-size:0.72rem;letter-spacing:1px;">
-                        NEW PASSWORD
-                        <small style="color:#555;font-size:0.68rem;"> — leave blank to keep current</small>
-                    </label>
-                    <input type="password" class="form-control" id="editPassword" placeholder="••••••••" autocomplete="new-password">
-                </div>
-                <div id="editMsg" class="alert d-none" style="font-size:0.8rem;"></div>
+                <label for="roleSelect" class="form-label">New role for <strong id="roleModalUid"></strong></label>
+                <select id="roleSelect" class="form-select">
+                    {% for role in role_options %}
+                    <option value="{{ role }}">{{ role }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i>Cancel
-                </button>
-                <button type="button" class="btn btn-primary btn-sm" id="saveEditBtn">
-                    <i class="fas fa-save me-1"></i>Save Changes
-                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="roleSave">Save</button>
             </div>
         </div>
     </div>
 </div>
-
-<!-- Confirm Modal (reusable) -->
-<div class="modal fade" id="confirmModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="modal-body pt-4 pb-2 px-4">
-                <div class="mm-confirm-icon" id="confirmIcon"><i class="fas fa-exclamation-triangle"></i></div>
-                <div class="mm-confirm-msg" id="confirmMsg">Are you sure?</div>
-                <div class="mm-confirm-sub" id="confirmSub"></div>
-            </div>
-            <div class="modal-footer justify-content-center border-0 pt-2 pb-3">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-sm" id="confirmActionBtn">Confirm</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Toast (replaces alert()) -->
-<div class="position-fixed bottom-0 end-0 p-3" style="z-index:11000;">
-    <div id="mmToast" class="toast align-items-center" role="alert"
-         style="background:#0d1117; border:1px solid #00ff4133; color:#00ff41; min-width:260px;">
-        <div class="d-flex">
-            <div class="toast-body" id="mmToastBody" style="font-size:0.82rem; font-family:'Share Tech Mono',monospace;"></div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    </div>
-</div>
+{% endif %}
 
 <script>
-$(document).ready(function () {
+    $(document).ready(function () {
+        // Initialize DataTables
+        const table = $("#userTable").DataTable();
 
-    // --- DataTables ---
-    const table = $("#userTable").DataTable({
-        columnDefs: [
-            { orderable: false, targets: [0, 5] }
-        ],
-        language: {
-            search:     "// FILTER:",
-            lengthMenu: "SHOW _MENU_ AGENTS",
-            info:       "// AGENTS _START_–_END_ OF _TOTAL_",
-            paginate:   { previous: "< PREV", next: "NEXT >" },
-            zeroRecords: "// NO AGENTS FOUND"
-        }
-    });
-    table.page.len(-1).draw();
 
-    // --- Bootstrap tooltips ---
-    document.querySelectorAll('[title]').forEach(el => {
-        new bootstrap.Tooltip(el, { trigger: 'hover', placement: 'top' });
-    });
-
-    // --- Toast helper ---
-    function showToast(msg, isError = false) {
-        const toast = document.getElementById('mmToast');
-        const body  = document.getElementById('mmToastBody');
-        body.textContent      = msg;
-        toast.style.borderColor = isError ? '#ff244255' : '#00ff4133';
-        body.style.color        = isError ? '#ff2442'   : '#00ff41';
-        new bootstrap.Toast(toast, { delay: 3500 }).show();
-    }
-
-    // --- Confirm modal helper (Promise-based) ---
-    function showConfirm(opts) {
-        return new Promise(resolve => {
-            document.getElementById('confirmMsg').textContent  = opts.msg     || 'Are you sure?';
-            document.getElementById('confirmSub').textContent  = opts.sub     || '';
-            document.getElementById('confirmIcon').innerHTML   = `<i class="${opts.icon || 'fas fa-exclamation-triangle'}" style="color:${opts.iconColor || '#ff2442'}; text-shadow:0 0 14px ${opts.iconColor || '#ff2442'};"></i>`;
-
-            const oldBtn = document.getElementById('confirmActionBtn');
-            const btn    = oldBtn.cloneNode(true);
-            oldBtn.parentNode.replaceChild(btn, oldBtn);
-
-            btn.textContent = opts.btnText  || 'Confirm';
-            btn.className   = `btn btn-sm ${opts.btnClass || 'btn-danger'}`;
-
-            const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-
-            btn.addEventListener('click', () => { modal.hide(); resolve(true); },  { once: true });
-            document.getElementById('confirmModal').addEventListener('hidden.bs.modal',
-                () => resolve(false), { once: true });
-
-            modal.show();
+        // Filter by active state and role, read from each row's data attributes
+        let statusFilter = "all";
+        let roleFilter = "";
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+            if (settings.nTable.id !== "userTable") return true;
+            const row = table.row(dataIndex).node();
+            const statusMatches = statusFilter === "all" || row.dataset.active === statusFilter;
+            const roleMatches = roleFilter === "" || row.dataset.role === roleFilter;
+            return statusMatches && roleMatches;
         });
-    }
-
-    // --- Edit button ---
-    document.querySelectorAll('.edit-btn').forEach(button => {
-        button.addEventListener('click', function () {
-            document.getElementById('editUid').value         = this.dataset.uid;
-            document.getElementById('editName').value        = this.dataset.name;
-            document.getElementById('editEmail').value       = this.dataset.email;
-            document.getElementById('editPassword').value    = '';
-            document.getElementById('editDisplayName').textContent = this.dataset.name;
-            document.getElementById('editDisplayUid').textContent  = '// ' + this.dataset.uid;
-            document.getElementById('editAvatar').src        = this.dataset.pfp;
-
-            const msg = document.getElementById('editMsg');
-            msg.className   = 'alert d-none';
-            msg.textContent = '';
-            new bootstrap.Modal(document.getElementById('editModal')).show();
-        });
-    });
-
-    // --- Save edit ---
-    document.getElementById('saveEditBtn').addEventListener('click', function () {
-        const uid      = document.getElementById('editUid').value;
-        const name     = document.getElementById('editName').value.trim();
-        const email    = document.getElementById('editEmail').value.trim();
-        const password = document.getElementById('editPassword').value;
-        const msg      = document.getElementById('editMsg');
-
-        if (!name || !email) {
-            msg.className   = 'alert alert-danger';
-            msg.textContent = '// Name and email cannot be empty.';
-            return;
-        }
-
-        const body = { name, email };
-        if (password) body.password = password;
-
-        this.disabled  = true;
-        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
-
-        fetch(`/update_user/${uid}`, {
-            method:  'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(body)
-        })
-        .then(r => r.json())
-        .then(data => {
-            msg.className   = 'alert alert-success';
-            msg.textContent = data.message || 'Agent updated successfully.';
-            setTimeout(() => location.reload(), 900);
-        })
-        .catch(() => {
-            msg.className   = 'alert alert-danger';
-            msg.textContent = '// Error updating agent.';
-            this.disabled   = false;
-            this.innerHTML  = '<i class="fas fa-save me-1"></i>Save Changes';
-        });
-    });
-
-    // --- Delete button ---
-    document.querySelectorAll('.delete-btn').forEach(button => {
-        button.addEventListener('click', async function () {
-            const id   = this.dataset.id;
-            const name = this.dataset.name;
-
-            const confirmed = await showConfirm({
-                msg:       `Terminate agent "${name}"?`,
-                sub:       `This action cannot be undone. ID: ${id}`,
-                btnText:   'TERMINATE',
-                btnClass:  'btn-danger',
-                icon:      'fas fa-skull',
-                iconColor: '#ff2442'
+        document.querySelectorAll("#accountFilters [data-status]").forEach(button => {
+            button.addEventListener("click", function () {
+                statusFilter = this.dataset.status;
+                document.querySelectorAll("#accountFilters [data-status]").forEach(b => b.classList.toggle("active", b === this));
+                table.draw();
             });
-            if (!confirmed) return;
-
-            fetch(`/users/delete/${id}`, {
-                method:  'DELETE',
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(r => r.json())
-            .then(data => {
-                showToast(data.message || 'Agent terminated.');
-                const row = document.getElementById(`user-${id}`);
-                if (row) table.row(row).remove().draw(false);
-            })
-            .catch(() => showToast('Error terminating agent.', true));
         });
-    });
-
-    // --- Reset password button ---
-    document.querySelectorAll('.reset-password-btn').forEach(button => {
-        button.addEventListener('click', async function () {
-            const id   = this.dataset.id;
-            const name = this.dataset.name;
-
-            const confirmed = await showConfirm({
-                msg:       `Reset password for "${name}"?`,
-                sub:       'Password will be set to the system default.',
-                btnText:   'RESET',
-                btnClass:  'btn-warning',
-                icon:      'fas fa-key',
-                iconColor: '#ffaa00'
+        const roleSelect = document.getElementById("roleFilter");
+        if (roleSelect) {
+            roleSelect.addEventListener("change", function () {
+                roleFilter = this.value;
+                table.draw();
             });
-            if (!confirmed) return;
-
-            fetch(`/users/reset_password/${id}`, {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' }
-            })
-            .then(r => r.json())
-            .then(data => showToast(data.message || 'Password reset successfully.'))
-            .catch(() => showToast('Error resetting password.', true));
+        }
+        const detailsForm = document.getElementById("detailsForm");
+        $("#userTable").on("click", ".details-btn", function () {
+            detailsForm.reset();
+            detailsForm.dataset.uid = this.dataset.uid;
+            detailsForm.elements.name.value = this.dataset.name;
+            detailsForm.elements.email.value = this.dataset.email === "?" ? "" : this.dataset.email;
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("detailsModal")).show();
         });
-    });
-
-    // --- Dev Mode toggle ---
-    document.querySelectorAll('.mm-dev-toggle').forEach(button => {
-        button.addEventListener('click', async function () {
-            const uid        = this.dataset.uid;
-            const currentVal = this.dataset.totp === 'true';
-            const newVal     = !currentVal;
-
-            const origHTML = this.innerHTML;
-            this.innerHTML  = '<i class="fas fa-spinner fa-spin fa-xs"></i>';
-            this.disabled   = true;
-
+        detailsForm?.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            const fields = Object.fromEntries(new FormData(this));
+            if (!fields.password) delete fields.password;
+            if (!fields.email) delete fields.email;
             try {
-                const r = await fetch('/api/user', {
-                    method:  'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body:    JSON.stringify({ uid, totp_enabled: newVal })
+                const response = await fetch("/update_user/" + encodeURIComponent(this.dataset.uid), {
+                    method: "PUT", headers: {"Content-Type": "application/json"}, body: JSON.stringify(fields)
                 });
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-
-                this.dataset.totp  = String(newVal);
-                this.innerHTML     = `<i class="fas fa-bug fa-xs"></i><span>${newVal ? 'DEV OFF' : 'DEV ON'}</span>`;
-                this.className     = this.className
-                    .replace(/mm-pill-danger|mm-pill-off/g, '').trim()
-                    + (newVal ? ' mm-pill-off' : ' mm-pill-danger');
-                this.title         = newVal
-                    ? 'DEV MODE OFF — click to enable'
-                    : 'DEV MODE ON — click to disable';
-                showToast(
-                    newVal ? `OTP enabled for ${uid}` : `Dev mode ON for ${uid} — OTP bypassed`,
-                    !newVal
-                );
-            } catch (e) {
-                console.error('Dev mode toggle failed:', e);
-                this.innerHTML = origHTML;
-                showToast('Failed to update dev mode.', true);
-            } finally {
-                this.disabled = false;
+                if (!response.ok) throw Error((await response.json()).error);
+                location.reload();
+            } catch (error) { alert(error.message); }
+        });
+        document.getElementById("staffCreate")?.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            try {
+                const response = await fetch("/api/user/admin-create", {
+                    method: "POST", headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify(Object.fromEntries(new FormData(this)))
+                });
+                if (!response.ok) throw Error((await response.json()).message);
+                location.reload();
+            } catch (error) {
+                alert(error.message);
             }
         });
-    });
+        // Handle delete action
+        $("#userTable").on("click", ".delete-btn", function () {
+                const id = this.dataset.id;
+                if (!confirm("Delete this account permanently?")) return;
+                fetch(`/users/delete/${id}`, {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                })
+                    .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                    .then(({ ok, data }) => {
+                        if (!ok) throw new Error(data.error || data.message || "Could not delete the user.");
+                        alert(data.message || "User deleted successfully.");
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error("Error deleting user:", error);
+                        alert(error.message || "Error deleting user.");
+                    });
+        });
 
-});
+        // Guest Window: open, close, or disable every guest at once
+        const guestWindowCloses = document.getElementById("guestWindowCloses");
+        if (guestWindowCloses) {
+            guestWindowCloses.textContent = new Date(guestWindowCloses.dataset.closes).toLocaleTimeString();
+        }
+        function guestRequest(url, method, body, confirmation) {
+            if (confirmation && !confirm(confirmation)) return;
+            const request = { method };
+            if (body) {
+                request.headers = { "Content-Type": "application/json" };
+                request.body = JSON.stringify(body);
+            }
+            fetch(url, request)
+                .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok) throw new Error(data.message || "Request failed");
+                    location.reload();
+                })
+                .catch(error => alert(error.message || "Request failed."));
+        }
+        const guestOpen = document.getElementById("guestWindowOpen");
+        if (guestOpen) {
+            guestOpen.addEventListener("click", () => guestRequest("/api/guest/window", "POST",
+                { minutes: Number(document.getElementById("guestWindowMinutes").value) }));
+            document.getElementById("guestWindowClose").addEventListener("click", () => guestRequest("/api/guest/window", "DELETE"));
+            document.getElementById("guestDisable").addEventListener("click", () => guestRequest("/api/guest/disable", "POST", null,
+                "Close the Guest Window and make every guest inactive now?"));
+        }
+
+        // Handle activate / verify / deactivate
+        $("#userTable").on("click", ".status-btn", function () {
+                const { uid, action } = this.dataset;
+                if (action === "deactivate" && !confirm(`Deactivate ${uid}? They will be blocked until verified again.`)) return;
+                const request = { method: "POST" };
+                if (this.dataset.promptDays) {  // the number of days is the Teacher's or Admin's to choose
+                    const answer = prompt(`Verify ${uid} for how many days?`, this.dataset.promptDays);
+                    if (answer === null) return;
+                    request.headers = { "Content-Type": "application/json" };
+                    request.body = JSON.stringify({ days: Number(answer) });
+                }
+                fetch(`/api/user/${encodeURIComponent(uid)}/${action}`, request)
+                    .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                    .then(({ ok, data }) => {
+                        if (!ok) throw new Error(data.message || "Request failed");
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error("Error changing status:", error);
+                        alert(error.message || "Error changing status.");
+                    });
+        });
+
+        // Handle Edit: change an account's role
+        const roleModalElement = document.getElementById("roleModal");
+        if (roleModalElement) {
+            const roleModal = new bootstrap.Modal(roleModalElement);
+            let editingUid = null;
+            $("#userTable").on("click", ".edit-btn", function () {
+                    editingUid = this.dataset.uid;
+                    document.getElementById("roleModalUid").textContent = editingUid;
+                    document.getElementById("roleSelect").value = this.dataset.role;
+                    roleModal.show();
+                });
+            document.getElementById("roleSave").addEventListener("click", function () {
+                fetch(`/api/user/${encodeURIComponent(editingUid)}/role`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ role: document.getElementById("roleSelect").value })
+                })
+                    .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                    .then(({ ok, data }) => {
+                        if (!ok) throw new Error(data.message || "Could not change the role");
+                        location.reload();
+                    })
+                    .catch(error => {
+                        console.error("Error changing role:", error);
+                        alert(error.message || "Error changing role.");
+                    });
+            });
+        }
+
+        // Handle reset password action
+        $("#userTable").on("click", ".reset-password-btn", function () {
+                const id = this.dataset.id;
+                if (!confirm("Reset the password for this account?")) return;
+                fetch(`/users/reset_password/${id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                })
+                    .then(async response => { const data = await response.json(); if (!response.ok) throw Error(data.error || data.message); return data; })
+                    .then(data => {
+                        alert(data.message || "Password reset successfully.");
+                    })
+                    .catch(error => {
+                        console.error("Error resetting password:", error);
+                        alert("Error resetting password.");
+                    });
+        });
+    });
 </script>
 
 {% endblock %}

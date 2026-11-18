@@ -1,8 +1,40 @@
+from collections import deque
 from flask import request, current_app, g
 from flask_login import current_user
 from functools import wraps
 import jwt
+import threading
+import time
 from model.user import User
+from model import account_types
+
+# When each limited account (a guest) made its recent requests, to hold it to requests_per_minute in
+# account_types.json. Kept in this process, so with several workers an account can make that many
+# requests a minute on each: it limits one account flooding the server, it does not meter it exactly.
+_recent = {}
+_recent_lock = threading.Lock()
+
+
+def throttled(user):
+    """True when this account has made its requests_per_minute in the last minute. A request is
+    counted once, however many checks it passes through."""
+    limit = account_types.requests_per_minute(user.role)
+    if limit is None or getattr(g, "request_counted", False):
+        return False
+    g.request_counted = True
+    now = time.monotonic()
+    with _recent_lock:
+        times = _recent.setdefault(user.id, deque())
+        while times and now - times[0] >= 60:
+            times.popleft()
+        if len(times) >= limit:
+            return True
+        times.append(now)
+        if len(_recent) > 1000:  # forget accounts that have gone quiet
+            for key in [k for k, v in _recent.items() if not v or now - v[-1] >= 60]:
+                del _recent[key]
+    return False
+
 
 def auth_required(roles=None):
     '''
@@ -61,7 +93,7 @@ def auth_required(roles=None):
                     data = jwt.decode(token, current_app.config["SECRET_KEY"], algorithms=["HS256"])
                     user = User.query.filter_by(_uid=data["_uid"]).first()
 
-                    if user is None:
+                    if user is None or data.get("token_version", 0) != (user.token_version or 0):
                         return {
                             "message": "Invalid Authentication token!",
                             "data": None,
@@ -91,10 +123,14 @@ def auth_required(roles=None):
                     }, 500
             
             # At this point, user is authenticated via either session or JWT
+            if not user.is_active or not account_types.request_allowed(user.role, request.method, request.path):
+                return {"message": "Account access restricted"}, 403
+            if throttled(user):
+                return {"message": "Too many requests. Wait a minute."}, 429, {"Retry-After": "60"}
             # Now check role requirements if specified
             if roles:
                 # Normalize roles to list for consistent checking
-                required_roles = roles if isinstance(roles, list) else [roles]
+                required_roles = [roles] if isinstance(roles, str) else roles
                 
                 if user.role not in required_roles:
                     return {

@@ -1,7 +1,8 @@
 """ database dependencies to support sqliteDB examples """
 from flask import current_app
 from flask_login import UserMixin
-from datetime import date
+from model import account_types
+from datetime import date, datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
@@ -151,6 +152,9 @@ class User(db.Model, UserMixin):
     _email = db.Column(db.String(255), unique=False, nullable=False)
     _birthdate = db.Column(db.String(10), unique=False, nullable=True)
     _password = db.Column(db.String(255), unique=False, nullable=False)
+    token_version = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    active = db.Column(db.Boolean, nullable=False, default=True, server_default=db.true())
+    last_verified = db.Column(db.DateTime)
     _role = db.Column(db.String(20), default="User", nullable=False)
     _pfp = db.Column(db.String(255), unique=False, nullable=True)
     kasm_server_needed = db.Column(db.Boolean, default=False)
@@ -195,17 +199,17 @@ class User(db.Model, UserMixin):
 
     # UserMixin/Flask-Login requires a get_id method to return the id as a string
     def get_id(self):
-        return str(self.id)
+        return f"{self.id}:{self.token_version or 0}"
 
     # UserMixin/Flask-Login requires is_authenticated to be defined
     @property
     def is_authenticated(self):
-        return True
+        return self.is_active
 
     # UserMixin/Flask-Login requires is_active to be defined
     @property
     def is_active(self):
-        return True
+        return bool(self.active) and not self.expired()
 
     # UserMixin/Flask-Login requires is_anonymous to be defined
     @property
@@ -316,6 +320,113 @@ class User(db.Model, UserMixin):
     def is_teacher(self):
         return self._role == "Teacher"
     
+    def is_staff(self):
+        """True for the roles that manage accounts (staff_roles in account_types.json)."""
+        return self.role in account_types.staff_roles()
+
+    @property
+    def verification_state(self):
+        if not self.is_active:
+            return "inactive"
+        if self.role in account_types.verification_exempt_roles():
+            return "active_verified"  # never re-verified
+        if self.last_verified is None or datetime.utcnow() - self.last_verified >= timedelta(days=account_types.verification_interval_days()):
+            return "active_verification_required"
+        return "active_verified"
+
+    def expired(self):
+        """True when this account's type has a lifetime (lifetime_hours in account_types.json) and
+        it has passed. The lifetime counts from last_verified, which activating the account sets."""
+        hours = account_types.lifetime_hours(self.role)
+        return hours is not None and (self.last_verified is None
+                                      or datetime.utcnow() - self.last_verified > timedelta(hours=hours))
+
+    def activate(self, days=None):
+        """Verify the account: mark it active and record when. days is how long the verification
+        should last, up to the full interval; without it, the full interval."""
+        interval = account_types.verification_interval_days()
+        used = interval if days is None else min(days, interval)
+        self.active = True
+        self.last_verified = datetime.utcnow() - timedelta(days=interval - used)
+        db.session.commit()
+        return self
+
+    def deactivate(self):
+        """Mark the account inactive. The account, its data and last_verified are kept."""
+        self.active = False
+        self.token_version = (self.token_version or 0) + 1
+        db.session.commit()
+        return self
+
+    def restore_state(self, user_data):
+        """Carry active and last_verified over from an exported user (read()), so a backup
+        restore keeps every account as it was instead of leaving it inactive. A backup taken
+        before these columns existed has no 'active' key; those accounts were all active,
+        as in the migration SQL next to the columns. Call before create(); no commit."""
+        self.active = bool(user_data.get('active', True))
+        last_verified = user_data.get('last_verified')
+        self.last_verified = datetime.fromisoformat(last_verified) if last_verified else None
+        return self
+
+    def is_last_active_essential(self):
+        """True when this is the only active account of a role the system must keep."""
+        return (self.active and self.role in account_types.essential_roles()
+                and User.query.filter_by(_role=self.role, active=True).count() == 1)
+
+    def deactivation_blocker(self, actor):
+        """None if actor may deactivate this account, else (HTTP status, reason)."""
+        if self.id == actor.id:
+            return 403, "You cannot deactivate your own account"
+        if self.is_admin() and not actor.is_admin():
+            return 403, "Only an Admin can deactivate an Admin"
+        if self.is_last_active_essential():
+            return 409, f"At least one active {self.role} account must remain"
+        return None
+
+    def role_editable_by(self, actor):
+        """True when actor may change this account's role at all: not their own, and only an
+        Admin may change an Admin's. Whatever role the account has now."""
+        return self.id != actor.id and (actor.is_admin() or not self.is_admin())
+
+    def grantable_roles(self):
+        """The roles this account may give to another account. Only an Admin may grant Admin."""
+        return tuple(r for r in account_types.assignable_roles() if r != account_types.admin_role() or self.is_admin())
+
+    def role_change_blocker(self, actor, new_role):
+        """None if actor may set this account's role to new_role, else (HTTP status, reason)."""
+        if new_role not in account_types.assignable_roles():
+            return 400, f"role must be one of: {', '.join(account_types.assignable_roles())}"
+        if self.id == actor.id:
+            return 403, "You cannot change your own role"
+        if not self.role_editable_by(actor) or new_role not in actor.grantable_roles():
+            return 403, "Only an Admin can change an Admin's role or make someone an Admin"
+        if new_role != self.role and self.is_last_active_essential():
+            return 409, f"At least one active {self.role} account must remain"
+        return None
+
+    def deletion_blocker(self, actor):
+        """None if actor may delete this account, else (HTTP status, reason)."""
+        if not (actor.is_admin() and actor.active):
+            return 403, "Only an active Admin can delete accounts"
+        if self.id == actor.id:
+            return 403, "You cannot delete your own account; another Admin must do it"
+        if self.is_last_active_essential():
+            return 409, f"At least one active {self.role} account must remain"
+        return None
+
+    @property
+    def verification_due(self):
+        """True while the account is inactive or its verification has lapsed."""
+        return self.verification_state != "active_verified"
+
+    @property
+    def verification_prompt_days(self):
+        """The suggested days to ask a Teacher/Admin for when they activate this account, or None
+        when the answer is not theirs to choose (a fixed period, or a role never re-verified)."""
+        if account_types.fixed_verification_days(self.role) is not None:
+            return None
+        return account_types.default_verification_days()
+
     # getter method for profile picture
     @property
     def pfp(self):
@@ -381,6 +492,8 @@ class User(db.Model, UserMixin):
             "email": self.email,
             "birthdate": self.birthdate,
             "role": self.role,
+            "active": self.active,
+            "last_verified": self.last_verified.isoformat() if self.last_verified else None,
             "pfp": self.pfp,
             "class": self._class if self._class is not None else [],
             "kasm_server_needed": self.kasm_server_needed,
@@ -398,6 +511,11 @@ class User(db.Model, UserMixin):
         data.update(personas)
         return data
         
+    def public_details(self):
+        data = self.read()
+        data.pop("password", None)
+        return data
+
     # CRUD update: updates user name, password, phone
     # returns self
     def update(self, inputs):
@@ -435,6 +553,7 @@ class User(db.Model, UserMixin):
             self.parent_email = parent_email
         if password:
             self.set_password(password)
+            self.token_version = (self.token_version or 0) + 1
         if pfp is not None:
             self.pfp = pfp
         if kasm_server_needed is not None:
@@ -494,12 +613,14 @@ class User(db.Model, UserMixin):
     # None
     def delete(self):
         try:
-            KasmUser().delete(self.uid)
+            if self.kasm_server_needed and app.config.get("KASM_API_KEY"):
+                KasmUser().delete(self.uid)
             db.session.delete(self)
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
-        return None   
+            return False
+        return True
     
     def save_pfp(self, image_data, filename):
         """For saving profile picture."""

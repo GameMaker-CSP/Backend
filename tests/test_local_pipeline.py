@@ -40,6 +40,68 @@ class LocalPipelineTests(unittest.TestCase):
         self.assertEqual(sign_in('theme-owner').get(path).json, settings)
         self.assertFalse(sign_in('theme-other').get(path).json['nod'])
 
+    def test_manager_roles_accounts_and_guest_window(self):
+        from unittest.mock import patch
+        from model.user import User
+
+        def sign_in(prefix):
+            client = app.test_client()
+            result = client.post('/login', data={'username': app.config[prefix + '_UID'],
+                                                 'password': app.config[prefix + '_PASSWORD']})
+            self.assertEqual(result.status_code, 302)
+            return client
+
+        admin, teacher, member = (sign_in(prefix) for prefix in ('ADMIN', 'TEACHER', 'USER'))
+        mentor = {'accountType':'mentor', 'uid':'event-mentor', 'name':'Taylor Ellis', 'password':'Initial-test-password'}
+        self.assertEqual(member.post('/api/user/admin-create', json=mentor).status_code, 403)
+        self.assertFalse(teacher.post('/api/user/admin-create', json=mentor).json['active'])
+        self.assertTrue(admin.post('/api/user/event-mentor/verify').json['active'])
+        uid = 'manager-test-member'
+        public = app.test_client()
+        credentials = {'uid': uid, 'password': 'Isolated-test-password'}
+        created = public.post('/api/user', json=dict(credentials, name='Taylor Ellis'))
+        self.assertEqual(created.status_code, 200)
+        self.assertNotIn('password', created.json)
+        member_id = created.json['id']
+        for route in ('/users/table2', '/persona/', '/sections/'):
+            self.assertEqual(admin.get(route).status_code, 200)
+        self.assertNotIn(b'Taylor Ellis', member.get('/users/table2').data)
+        self.assertEqual(member.delete(f'/users/delete/{member_id}').status_code, 403)
+        role_url = f'/api/user/{uid}/role'
+        self.assertEqual(teacher.post(role_url, json={'role':'Admin'}).status_code, 403)
+        self.assertEqual(teacher.post(role_url, json={'role':'Mentor'}).json['role'], 'Mentor')
+        self.assertEqual(admin.put(f'/update_user/{uid}', json={'name':'Taylor Rivers'}).status_code, 200)
+        self.assertEqual(public.post('/api/authenticate', json=credentials).status_code, 200)
+        self.assertEqual(admin.post(f'/api/user/{uid}/deactivate').status_code, 200)
+        self.assertEqual(public.get('/api/id').status_code, 401)
+        self.assertEqual(public.post('/api/authenticate', json=credentials).status_code, 401)
+        self.assertEqual(teacher.post(f'/api/user/{uid}/verify', json={'days':30}).status_code, 200)
+        self.assertEqual(public.post('/api/authenticate', json=credentials).status_code, 200)
+        self.assertEqual(admin.post(f'/users/reset_password/{member_id}').status_code, 200)
+        self.assertEqual(public.post('/api/authenticate', json=credentials).status_code, 401)
+        self.assertEqual(admin.delete(f'/users/delete/{member_id}').status_code, 200)
+        with app.app_context():
+            self.assertIsNone(User.query.filter_by(_uid=uid).first())
+
+        section = {'name':'Event volunteers', 'abbreviation':'EV'}
+        self.assertEqual(member.post('/api/section', json=section).status_code, 403)
+        created = admin.post('/api/section', json=section)
+        self.assertEqual(created.status_code, 200)
+        route = '/api/section/' + str(created.json['id'])
+        self.assertEqual(admin.put(route, json=dict(section, name='Event team')).status_code, 200)
+        self.assertEqual(admin.delete(route).status_code, 200)
+
+        with patch.dict(app.config, GUEST_WINDOW_FILE=str(Path(TEST_DIRECTORY.name) / 'guest-test.json')):
+            guest = app.test_client()
+            guest_credentials = {'uid':'weekend-guest','password':'Guest-test-password'}
+            self.assertEqual(guest.post('/api/user/guest', json=guest_credentials).status_code, 403)
+            self.assertEqual(teacher.post('/api/guest/window', json={'minutes':10}).status_code, 200)
+            self.assertEqual(guest.post('/api/user/guest', json=guest_credentials).json['role'], 'Guest')
+            self.assertEqual(guest.post('/api/authenticate', json=guest_credentials).status_code, 200)
+            self.assertEqual(guest.get('/api/id').status_code, 200)
+            self.assertEqual(admin.post('/api/guest/disable').status_code, 200)
+            self.assertEqual(guest.get('/api/id').status_code, 401)
+
     def test_health_and_browser_preflight(self):
         client = app.test_client()
         response = client.get('/api/health')

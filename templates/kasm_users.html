@@ -4,9 +4,7 @@
 
 {% block body %}
 <div class="container mt-5">
-   <h1 style="font-family:'Orbitron',sans-serif;color:#00ff41;letter-spacing:3px;text-shadow:0 0 12px #00ff41;font-size:1.4rem;margin-bottom:4px;">&#128481; KASM USER REPORT</h1>
-   <p style="color:#00ff4188;font-size:0.8rem;margin-bottom:24px;">// Active Kasm sessions and agent workspace data</p>
-  
+   <h1>Workspace sessions</h1>
    {% if users %}
    <table class="table table-bordered table-striped table-hover" id="userTable">
        <thead class="thead-dark">
@@ -30,7 +28,7 @@
                    <td>
                        <!-- Trash can icon -->
                        <button class="btn btn-danger btn-sm delete-user-btn">
-                           <i class="fas fa-trash-alt"></i>
+                           Remove workspace
                        </button>
                    </td>
                </tr>
@@ -48,7 +46,7 @@
 
 
 {% block background %}
-<script src="https://kit.fontawesome.com/a076d05399.js"></script>
+
 <script>
    document.addEventListener('DOMContentLoaded', function () {
        const deleteButtons = document.querySelectorAll('.delete-user-btn');
@@ -98,37 +96,4 @@
 
 
   
-<style>
-   #userTable {
-       background-color: #0d1117;
-       color: #00ff41;
-   }
-   #userTable th, #userTable td {
-       text-align: center;
-       vertical-align: middle;
-       border-color: #00ff4133 !important;
-   }
-   #userTable thead {
-       background-color: #0a0a0a;
-       color: #00ff41;
-       font-family: 'Orbitron', sans-serif;
-       font-size: 0.75rem;
-       letter-spacing: 1px;
-   }
-   #userTable tbody tr:hover {
-       background-color: #0f2a0f !important;
-   }
-   .alert-info {
-       background-color: #001a08;
-       color: #00ff41;
-       border-color: #00ff4144;
-       font-family: 'Share Tech Mono', monospace;
-   }
-   .btn-danger i {
-       font-size: 16px;
-   }
-</style>
 {% endblock %}
-
-
-

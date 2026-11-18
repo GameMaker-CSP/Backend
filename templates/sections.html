@@ -5,12 +5,6 @@
 <div class="container mt-5">
     <h1>Section Management</h1>
 
-    <div class="alert alert-warning d-flex align-items-center gap-2" role="alert">
-        <span style="font-size:1.4rem;">🚧</span>
-        <div><strong>Under Construction</strong> — Section management is temporarily disabled.</div>
-    </div>
-
-    {# TABLE DISABLED — restore by removing the comment tags below
     <table class="table table-striped" id="sectionsTable">
         <thead>
             <tr>
@@ -27,8 +21,8 @@
                 <td>{{ section._abbreviation }}</td>
                 <td>{{ section._name }}</td>
                 <td>
+                    {% if current_user.is_admin() %}
                     <button class="btn btn-primary edit-btn" data-id="{{ section.id }}">Edit</button>
-                    {% if current_user.role == 'Admin' %}
                     <button class="btn btn-danger delete-btn" data-id="{{ section.id }}">Delete</button>
                     {% endif %}
                 </td>
@@ -37,14 +31,13 @@
         </tbody>
     </table>
 
-    {% if current_user.role == 'Admin' %}
+    <!-- Add New Section Button -->
+    {% if current_user.is_admin() %}
     <button class="btn btn-success" id="addSectionBtn">Add New Section</button>
     {% endif %}
-    #}
 </div>
 
 <script>
-    /* DISABLED — restore when section management is re-enabled
     $(document).ready(function () {
         // Initialize DataTables
         $("#sectionsTable").DataTable();
@@ -55,7 +48,7 @@
             const abbreviation = prompt("Enter section abbreviation:");
             
             if (name && abbreviation) {
-                fetch("/api/section/create", {
+                fetch("/api/section", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name: name, abbreviation: abbreviation })
@@ -73,8 +66,7 @@
         });
 
         // Handle Edit action
-        document.querySelectorAll(".edit-btn").forEach(button => {
-            button.addEventListener("click", function () {
+        $("#sectionsTable").on("click", ".edit-btn", function () {
                 const id = this.dataset.id;
                 const row = document.getElementById(`section-${id}`);
                 const currentAbbr = row.children[1].textContent;
@@ -84,7 +76,7 @@
                 const newAbbr = prompt("Enter new section abbreviation:", currentAbbr);
                 
                 if (newName && newAbbr) {
-                    fetch(`/api/section/update/${id}`, {
+                    fetch(`/api/section/${id}`, {
                         method: "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ name: newName, abbreviation: newAbbr })
@@ -99,15 +91,13 @@
                             alert("Error updating section.");
                         });
                 }
-            });
         });
 
         // Handle delete action
-        document.querySelectorAll(".delete-btn").forEach(button => {
-            button.addEventListener("click", function () {
+        $("#sectionsTable").on("click", ".delete-btn", function () {
                 const id = this.dataset.id;
                 if (confirm("Are you sure you want to delete this section?")) {
-                    fetch(`/api/section/delete/${id}`, {
+                    fetch(`/api/section/${id}`, {
                         method: "DELETE",
                         headers: { "Content-Type": "application/json" },
                     })
@@ -121,10 +111,8 @@
                             alert("Error deleting section.");
                         });
                 }
-            });
         });
     });
-    */
 </script>
 
 {% endblock %}

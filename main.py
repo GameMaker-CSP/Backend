@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 # import "objects" from "this" project
 from __init__ import app, db, login_manager, socketio  # Key Flask objects
 # API endpoints
+from api.authorize import throttled
 from api.user import user_api 
 from api.python_exec_api import python_exec_api
 from api.javascript_exec_api import javascript_exec_api
@@ -35,6 +36,7 @@ import api.multiplayer  # registers Socket.IO event handlers
 #from api.announcement import announcement_api ##temporary revert
 
 # database Initialization functions
+from model import account_types, guest_window
 from model.user import User, initUsers, ensure_admin
 from model.friendship import FriendRequest
 from model.user import Section;
@@ -109,6 +111,15 @@ with app.app_context():
                 "Legacy games schema detected. Back up the database and migrate it "
                 "before starting this version; no saved games have been deleted."
             )
+    if _inspector.has_table('users'):
+        columns = {col['name'] for col in _inspector.get_columns('users')}
+        with db.engine.begin() as connection:
+            if 'token_version' not in columns:
+                connection.execute(text('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0'))
+            if 'active' not in columns:
+                connection.execute(text('ALTER TABLE users ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE'))
+            if 'last_verified' not in columns:
+                connection.execute(text('ALTER TABLE users ADD COLUMN last_verified DATETIME'))
     db.create_all()   # creates any missing tables (including new games schema)
     if User.query.count() == 0:
         initUsers()   # only seed on first run — avoids duplicate/integrity errors on restart
@@ -134,7 +145,26 @@ def unauthorized_callback():
 # register URIs for server pages
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    identifier, _, version = user_id.partition(':')
+    if not identifier.isdecimal():
+        return None
+    user = db.session.get(User, int(identifier))
+    if user and user.is_active and str(user.token_version or 0) == (version or "0"):
+        return user
+    return None
+
+@app.before_request
+def limit_session_accounts():
+    """An account type limited to a list of requests (a guest), and to a number of them a minute,
+    is held to that on Flask's own pages and login session too, not only through the API's token
+    check."""
+    if request.endpoint == 'static' or request.method == 'OPTIONS' or not current_user.is_authenticated:
+        return None
+    if not account_types.request_allowed(current_user.role, request.method, request.path):
+        return jsonify({'message': 'This type of account is not allowed to do that.'}), 403
+    if throttled(current_user):
+        return jsonify({'message': 'Too many requests. Wait a minute.'}), 429, {'Retry-After': '60'}
+    return None
 
 @app.context_processor
 def inject_user():
@@ -152,7 +182,7 @@ def login():
     next_page = request.args.get('next', '') or request.form.get('next', '')
     if request.method == 'POST':
         user = User.query.filter_by(_uid=request.form['username']).first()
-        if user and user.is_password(request.form['password']):
+        if user and user.is_active and user.is_password(request.form['password']):
             login_user(user)
             if not is_safe_url(next_page):
                 return abort(400)
@@ -177,7 +207,7 @@ def google_login():
     except Exception:
         return render_template("login.html", error='Invalid Google credential. Please try again.', next=next_page)
     user = User.query.filter_by(_email=email, _auth_type='google').first()
-    if not user:
+    if not user or not user.is_active:
         return render_template("login.html", error=f'No account found for {email}. Please sign up first.', next=next_page)
     login_user(user)
     if next_page and not is_safe_url(next_page):
@@ -200,7 +230,6 @@ def page_not_found(e):
 
 @app.route('/')  # connects default URL to index() function
 def index():
-    print("Home:", current_user)
     return render_template("index.html")
 
 
@@ -208,8 +237,11 @@ def index():
 @app.route('/users/table2')
 @login_required
 def u2table():
-    users = User.query.all()
-    return render_template("u2table.html", user_data=users)
+    users = User.query.all() if current_user.is_staff() else [current_user]
+    window_closes = guest_window.closes_at()
+    return render_template("u2table.html", user_data=users, role_options=current_user.grantable_roles(),
+                           guest_window_closes=None if window_closes is None else window_closes.isoformat() + "Z",
+                           staff_account_types=account_types.staff_created(), guest_window_max=account_types.window_max_minutes())
 
 @app.route('/sections/')
 @login_required
@@ -233,7 +265,11 @@ def uploaded_file(filename):
 def delete_user(user_id):
     user = User.query.get(user_id)
     if user:
-        user.delete()
+        blocker = user.deletion_blocker(current_user)
+        if blocker:
+            return jsonify(error=blocker[1]), blocker[0]
+        if not user.delete():
+            return jsonify(error="Account still has linked records"), 409
         return jsonify({'message': 'User deleted successfully'}), 200
     return jsonify({'error': 'User not found'}), 404
 
@@ -253,7 +289,10 @@ def reset_password(user_id):
     return jsonify({'error': 'Password reset failed'}), 500
 
 @app.route('/kasm_users')
+@login_required
 def kasm_users():
+    if not current_user.is_admin():
+        abort(403)
     # Fetch configuration details from environment or app config
     SERVER = current_app.config.get('KASM_SERVER')
     API_KEY = current_app.config.get('KASM_API_KEY')
@@ -312,6 +351,7 @@ def kasm_users():
         
         
 @app.route('/delete_user/<user_id>', methods=['DELETE'])
+@login_required
 def delete_user_kasm(user_id):
     if current_user.role != 'Admin':
         return jsonify({'error': 'Unauthorized'}), 403
@@ -350,27 +390,17 @@ def update_user(uid):
     if not current_user.is_admin():
         return jsonify({'error': 'Unauthorized'}), 403
 
-    # Get the JSON data from the request
+    user = User.query.filter_by(_uid=uid).first_or_404()
     data = request.get_json()
-    print(f"Request Data: {data}")  # Log the incoming data
-
-    # Find the user in the database
-    user = User.query.filter_by(_uid=uid).first()
-    if user:
-        print(f"Found user: {user.uid}")  # Log the found user's UID
-        
-        # Update the user using the provided data
-        user.update(data)  # Assuming `user.update(data)` is a method on your User model
-        
-        # Save changes to the database
-        return jsonify({"message": "User updated successfully."}), 200
-    else:
-        print("User not found.")  # Log when user is not found
-        return jsonify({"message": "User not found."}), 404
+    if not isinstance(data, dict) or not data or data.keys() - {'name', 'email', 'password', 'kasm_server_needed'}:
+        return jsonify(error='Supply a name, email or password'), 400
+    if not all((isinstance(value, bool) if key == "kasm_server_needed" else isinstance(value, str) and value.strip()) for key, value in data.items()):
+        return jsonify(error='Fields cannot be empty'), 400
+    if not user.update(data):
+        return jsonify(error='Account could not be updated'), 409
+    return jsonify(message='Account updated')
 
 
-
-    
 # Create an AppGroup for custom commands
 custom_cli = AppGroup('custom', help='Custom commands')
 

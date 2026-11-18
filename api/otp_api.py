@@ -17,8 +17,10 @@ _otp_store = {}
 
 def _issue_jwt_response(user):
     """Build a response with a JWT cookie identical to the main authenticate endpoint."""
+    if not user.is_active:
+        return {"message": "Account is inactive"}, 403
     token = pyjwt.encode(
-        {"_uid": user._uid},
+        {"_uid": user._uid, "token_version": user.token_version or 0},
         current_app.config["SECRET_KEY"],
         algorithm="HS256"
     )
@@ -62,7 +64,7 @@ class OTPApi:
             user = User.query.filter_by(_email=identifier, _auth_type='otp').first()
             if not user:
                 user = User.query.filter_by(_uid=identifier).first()
-            if not user or not user.is_password(password):
+            if not user or not user.is_active or not user.is_password(password):
                 return {'message': 'Invalid email/username or password'}, 401
 
             if not getattr(user, 'totp_enabled', True):

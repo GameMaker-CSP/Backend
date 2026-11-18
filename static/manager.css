@@ -1,0 +1,22 @@
+[data-bs-theme="dark"] {
+    --bs-body-bg: #0d1117;
+    --bs-body-color: #e6edf3;
+    --bs-tertiary-bg: #161b27;
+    --bs-secondary-bg: #1e2535;
+    --bs-link-color: #00d4ff;
+    --bs-border-color: #364055;
+}
+.btn-primary {
+    --bs-btn-bg: #00d4ff;
+    --bs-btn-color: #0d1117;
+    --bs-btn-border-color: transparent;
+    --bs-btn-hover-color: #0d1117;
+    --bs-btn-hover-bg: #67e5ff;
+}
+h1 { margin-bottom: 1.5rem; }
+.card, .modal-content { background: var(--bs-tertiary-bg); }
+.dataTables_wrapper { overflow-x: auto; padding: .25rem; }
+.table td { vertical-align: middle; }
+.table .btn { margin: .15rem; white-space: nowrap; }
+.login-panel { max-width: 28rem; }
+:focus-visible { outline: 3px solid #00d4ff; outline-offset: 2px; }

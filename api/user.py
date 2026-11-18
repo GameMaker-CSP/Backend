@@ -6,6 +6,7 @@ from datetime import datetime, date
 from __init__ import app, db
 from api.authorize import token_required
 from model.user import User
+from model import account_types, guest_window
 from model.github import GitHubUser
 import os
 
@@ -62,7 +63,7 @@ class UserAPI:
             ''' Retrieve the current user from the token_required authentication check '''
             current_user = g.current_user
             ''' Return the current user as a json object with role information '''
-            user_data = current_user.read()
+            user_data = current_user.public_details()
             # Add role information to response
             user_data['role'] = current_user.role
             user_data['is_admin'] = current_user.is_admin()
@@ -70,6 +71,7 @@ class UserAPI:
             return jsonify(user_data)
     
     class _BULK(Resource):  # Users API operation for Create, Read, Update, Delete 
+        @token_required("Admin")
         def post(self):
             ''' Handle bulk user creation by sending POST requests to the single user endpoint '''
             users = request.get_json()
@@ -195,17 +197,11 @@ class UserAPI:
                 #print(f"User type: {type(user)}")
                 
                 if not user:
-                    # Check if user was actually created in database despite create() returning None
-                    db_user = User.query.filter_by(_uid=uid).first()
-                    if db_user:
-                        #print(f"User exists in DB but create returned None: {db_user.uid}")
-                        return jsonify(db_user.read())  # Return the user anyway
-                    else:
-                        return {'message': f'Processed {name}, either a format error or User ID {uid} is duplicate'}, 400
-                
+                    return {'message': 'User ID is unavailable'}, 409
+
                 #print(f"Successfully created user: {user.uid}")
                 # return response, the created user details as a JSON object
-                return jsonify(user.read())
+                return jsonify(user.public_details())
                 
             except Exception as e:
                 #print(f"Error creating user: {e}")
@@ -233,15 +229,16 @@ class UserAPI:
             per_page = min(request.args.get('per_page', 50, type=int), 200)
             
             """ User SQLAlchemy query returning list of all users """
+            query = User.query if current_user.is_staff() else User.query.filter_by(id=current_user.id)
             if page:
                 # Paginated query
-                pagination = User.query.paginate(page=page, per_page=per_page, error_out=False)
+                pagination = query.paginate(page=page, per_page=per_page, error_out=False)
                 users = pagination.items
                 has_next = pagination.has_next
                 has_prev = pagination.has_prev
                 total = pagination.total
             else:
-                users = User.query.all() # extract all users from the database
+                users = query.all() # extract visible users from the database
                 has_next = False
                 has_prev = False
                 total = len(users)
@@ -249,7 +246,7 @@ class UserAPI:
             # prepare a json list of user dictionaries
             json_ready = []  
             for user in users:
-                user_data = user.read()
+                user_data = user.public_details()
                 # Add access control
                 if current_user.role == 'Admin' or current_user.id == user.id:
                     user_data['access'] = ['rw'] # read-write access control 
@@ -307,7 +304,7 @@ class UserAPI:
             user.update(body)
             
             # return response, the updated user details as a JSON object
-            return jsonify(user.read())
+            return jsonify(user.public_details())
         
         @token_required("Admin")
         def delete(self):
@@ -330,8 +327,12 @@ class UserAPI:
                 return {'message': f'User {uid} not found'}, 404
            
             # Read and then Delete the User object using custom methods
-            user_json = user.read()
-            user.delete()
+            blocker = user.deletion_blocker(g.current_user)
+            if blocker:
+                return {"message": blocker[1]}, blocker[0]
+            user_json = user.public_details()
+            if not user.delete():
+                return {"message": "Account still has linked records"}, 409
             
             # 204 is the status code for delete with no json response
             return f"Deleted user: {user_json}", 204 # use 200 to test with Postman
@@ -429,6 +430,10 @@ class UserAPI:
                 user = User.query.filter_by(_uid=uid).first()
                 
                 if user is None or not user.is_password(password):
+                    return {"message": "Invalid user id or password"}, 401
+                if user.expired() and guest_window.is_open():
+                    user.activate()
+                if not user.is_active:
                     
                     return {'message': f"Invalid user id or password"}, 401
                             
@@ -436,7 +441,7 @@ class UserAPI:
                 if user:
                     try:
                         token = jwt.encode(
-                            {"_uid": user._uid},
+                            {"_uid": user._uid, "token_version": user.token_version or 0},
                             current_app.config["SECRET_KEY"],
                             algorithm="HS256"
                         )
@@ -697,58 +702,140 @@ class UserAPI:
             Returns:
                 JSON response with the created user details or an error message.
             """
-            # Read data from json body
+            if not guest_window.is_open():
+                return {"message": "Guest registration is closed"}, 403
             body = request.get_json()
+            if not isinstance(body, dict) or not all(isinstance(body.get(k), str) and len(body[k].strip()) >= 2 for k in ('uid', 'password')):
+                return {"message": "Supply a username and password"}, 400
+            user = User(name=body['uid'], uid=body['uid'], password=body['password'], role='Guest')
+            user.last_verified = datetime.utcnow()
+            if not user.create():
+                return {"message": "Username unavailable"}, 409
+            return jsonify(uid=user.uid, role=user.role)
 
-            # Validate uid (username)
-            uid = body.get('uid')
-            if uid is None or len(uid) < 2:
-                return {'message': 'Username is missing, or is less than 2 characters'}, 400
+    class _VerifyAccount(Resource):
+        """Teacher/Admin verifies any account: marks it active and records last_verified.
+        How long that covers is fixed for some roles (see model/dataconfigs/account_types.json); for the
+        others the optional JSON body {"days": N} says (1 up to the full interval), and
+        default_verification_days applies when it is left out."""
+        @token_required(account_types.staff_roles())
+        def post(self, uid):
+            target = User.query.filter_by(_uid=uid).first()
+            if target is None:
+                return {'message': f'User {uid} not found'}, 404
+            if target.is_admin() and not g.current_user.is_admin():
+                return {"message": "An admin must verify this account"}, 403
+            if account_types.allowed_requests(target.role) is not None:
+                # verifying would restart, or end, the few hours a limited account (a guest) lasts
+                return {'message': 'This type of account cannot be verified'}, 400
+            days = account_types.fixed_verification_days(target.role)
+            if days is None:
+                body = request.get_json(silent=True)
+                if body is not None and not isinstance(body, dict):
+                    return {'message': 'The body must be a JSON object such as {"days": 30}'}, 400
+                days = (body or {}).get('days', account_types.default_verification_days())
+            interval = account_types.verification_interval_days()
+            if not isinstance(days, int) or isinstance(days, bool) or not 1 <= days <= interval:
+                return {'message': f'days must be a whole number from 1 to {interval}'}, 400
+            target.activate(days)
+            return jsonify(uid=target.uid, active=target.active)
 
-            # Validate password (relaxed requirement for guests)
-            password = body.get('password')
-            if password is None or len(password) < 2:
-                return {'message': 'Password is missing, or is less than 2 characters'}, 400
+    class _DeactivateAccount(Resource):
+        """Teacher/Admin marks an account inactive. The account and its data are kept."""
+        @token_required(account_types.staff_roles())
+        def post(self, uid):
+            target = User.query.filter_by(_uid=uid).first()
+            if target is None:
+                return {'message': f'User {uid} not found'}, 404
+            blocker = target.deactivation_blocker(g.current_user)
+            if blocker:
+                return {'message': blocker[1]}, blocker[0]
+            target.deactivate()
+            return jsonify(uid=target.uid, active=target.active)
 
-            # Auto-generate required fields for guest accounts
-            name = f"Guest_{uid}"
-            email = "?"
+    class _ChangeRole(Resource):
+        """Teacher/Admin changes another account's role: POST {"role": <a role from account_types.json>}. Only an Admin can
+        make someone an Admin or change an Admin's role; nobody changes their own role."""
+        @token_required(account_types.staff_roles())
+        def post(self, uid):
+            target = User.query.filter_by(_uid=uid).first()
+            if target is None:
+                return {'message': f'User {uid} not found'}, 404
+            body = request.get_json(silent=True)
+            role = body.get('role') if isinstance(body, dict) else None
+            blocker = target.role_change_blocker(g.current_user, role)
+            if blocker:
+                return {'message': blocker[1]}, blocker[0]
+            target.role = role
+            db.session.commit()
+            return jsonify(uid=target.uid, role=target.role)
 
-            # Create User object with auto-generated name
-            user_obj = User(name=name, uid=uid, password=password)
+    class _GuestWindow(Resource):
+        """The Guest Window (see model/guest_window.py). Anyone can ask whether it is open. A
+        Teacher/Admin opens it with {"minutes": N}, N up to window_max_minutes in
+        model/dataconfigs/account_types.json, and can close it at any time."""
+        def get(self):
+            closes = guest_window.closes_at()
+            return {'open': closes is not None, 'closes_at': None if closes is None else closes.isoformat()}
 
-            # Build cleaned body with all fields filled
-            cleaned_body = {
-                'name': name,
-                'uid': uid,
-                'password': password,
-                'email': email,
-                'birthdate': None,
-                'location': "Unknown",
-                'kasm_server_needed': False
-            }
-            if body.get('class') is not None:
-                cleaned_body['class'] = body.get('class')
+        @token_required(account_types.staff_roles())
+        def post(self):
+            body = request.get_json(silent=True)
+            minutes = body.get('minutes') if isinstance(body, dict) else None
+            longest = account_types.window_max_minutes()
+            if not isinstance(minutes, int) or isinstance(minutes, bool) or not 1 <= minutes <= longest:
+                return {'message': f'minutes must be a whole number from 1 to {longest}'}, 400
+            closes = guest_window.open_for(minutes)
+            # %r quotes the uid, so a newline in it cannot forge a second log line
+            current_app.logger.info("AUDIT guest window opened by uid=%r for %d minutes", g.current_user.uid, minutes)
+            return {'open': True, 'closes_at': closes.isoformat()}
 
-            # Create the guest user (skip GitHub validation)
-            try:
-                user = user_obj.create(cleaned_body)
+        @token_required(account_types.staff_roles())
+        def delete(self):
+            guest_window.close()
+            current_app.logger.info("AUDIT guest window closed by uid=%r", g.current_user.uid)
+            return {'open': False, 'closes_at': None}
 
-                if not user:
-                    # Check if user was actually created in database
-                    db_user = User.query.filter_by(_uid=uid).first()
-                    if db_user:
-                        return jsonify(db_user.read())
-                    else:
-                        return {'message': f'Failed to create guest account for {uid}, username may already exist'}, 400
+    class _GuestDisable(Resource):
+        """Teacher/Admin turns guest access off at once: closes the Guest Window and makes every
+        active guest inactive, so each is refused from their next request. The records are kept,
+        and a guest can come back in a later window."""
+        @token_required(account_types.staff_roles())
+        def post(self):
+            guest_window.close()
+            guests = User.query.filter(User._role.in_(account_types.guest_roles()), User.active.is_(True)).all()
+            for guest in guests:
+                guest.token_version = (guest.token_version or 0) + 1
+                guest.active = False
+                guest.last_verified = None  # so coming back counts as returning after the time has passed
+            db.session.commit()
+            current_app.logger.info("AUDIT guest access disabled by uid=%r, %d guest accounts made inactive", g.current_user.uid, len(guests))
+            return {'open': False, 'closes_at': None, 'disabled': len(guests)}
 
-                # Return the created user details
-                return jsonify(user.read())
+    class _StaffCreate(Resource):
+        @token_required(account_types.staff_roles())
+        def post(self):
+            data = request.get_json()
+            if not isinstance(data, dict):
+                return {"message": "Supply account details"}, 400
+            kind = data.get("accountType")
+            role = account_types.staff_created().get(kind) if isinstance(kind, str) else None
+            if not role or role not in g.current_user.grantable_roles():
+                return {"message": "Choose a staff-created account type"}, 400
+            if not all(isinstance(data.get(key), str) and data[key].strip() for key in ("name", "uid", "password")) or len(data["password"]) < 8:
+                return {"message": "Supply a name, user ID and password of at least eight characters"}, 400
+            user = User(name=data["name"].strip(), uid=data["uid"].strip(), password=data["password"], role=role)
+            user.active = False
+            if not user.create():
+                return {"message": "User ID unavailable"}, 409
+            return jsonify(uid=user.uid, role=user.role, active=user.active)
 
-            except Exception as e:
-                return {'message': f'Error creating guest user: {str(e)}'}, 500
-
-    # building RESTapi endpoint
+    api.add_resource(_StaffCreate, '/user/admin-create')
+    api.add_resource(_VerifyAccount, '/user/<string:uid>/verify')
+    api.add_resource(_DeactivateAccount, '/user/<string:uid>/deactivate')
+    api.add_resource(_ChangeRole, '/user/<string:uid>/role')
+    api.add_resource(_GuestWindow, '/guest/window')
+    api.add_resource(_GuestDisable, '/guest/disable')
     api.add_resource(_ID, '/id')
     api.add_resource(_BULK, '/users')
     api.add_resource(_CRUD, '/user')

@@ -65,3 +65,29 @@ class SectionAPI:
          
     # building RESTapi endpoint
     api.add_resource(_CRUD, '/section')
+
+class SectionById(Resource):
+    @token_required("Admin")
+    def put(self, id):
+        from __init__ import db
+        from sqlalchemy.exc import IntegrityError
+        section = Section.query.get_or_404(id)
+        data = request.get_json()
+        if not isinstance(data, dict) or not all(isinstance(data.get(k), str) and 2 <= len(data[k].strip()) <= 255 for k in ('name', 'abbreviation')):
+            return {'message': 'Name and abbreviation must be 2 to 255 characters'}, 400
+        section._name = data['name'].strip()
+        section._abbreviation = data['abbreviation'].strip()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            return {'message': 'Abbreviation already in use'}, 409
+        return jsonify(section.read())
+
+    @token_required("Admin")
+    def delete(self, id):
+        section = Section.query.get_or_404(id)
+        section.delete()
+        return {'message': 'Section deleted'}
+
+api.add_resource(SectionById, '/section/<int:id>')
