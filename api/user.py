@@ -15,6 +15,46 @@ user_api = Blueprint('user_api', __name__,
 # API docs https://flask-restful.readthedocs.io/en/latest/api.html
 api = Api(user_api)
 
+class AccountDisplayPreferences(db.Model):
+    __tablename__ = 'uesl_display_preferences'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    theme = db.Column(db.String(20), nullable=False)
+    language = db.Column(db.String(8), nullable=False)
+    nod = db.Column(db.Boolean, nullable=False)
+
+
+class DisplayPreferences(Resource):
+    @token_required()
+    def get(self):
+        row = db.session.get(AccountDisplayPreferences, g.current_user.id)
+        return {'theme': row.theme, 'language': row.language, 'nod': row.nod} if row else {
+            'theme': 'Site Default', 'language': '', 'nod': False}
+
+    @token_required()
+    def put(self):
+        from sqlalchemy.dialects.sqlite import insert
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return {'message': 'Expected preference settings'}, 400
+        theme, language, nod = (data.get(key) for key in ('theme', 'language', 'nod'))
+        if (theme not in ('Site Default', 'Light', 'Green', 'Midnight', 'Sepia', 'Cyberpunk', 'Ocean')
+                or language not in ('', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh-CN', 'zh-TW', 'ja', 'ko', 'ar', 'hi', 'vi', 'th', 'nl', 'pl', 'tr', 'uk', 'he', 'fa')
+                or type(nod) is not bool):
+            return {'message': 'Invalid display preferences'}, 400
+        values = dict(theme=theme, language=language, nod=nod)
+        row = AccountDisplayPreferences(user_id=g.current_user.id, **values)
+        if db.engine.dialect.name == 'sqlite':
+            stmt = insert(AccountDisplayPreferences).values(user_id=g.current_user.id, **values)
+            db.session.execute(stmt.on_conflict_do_update(index_elements=['user_id'], set_=values))
+        else:
+            db.session.merge(row)
+        db.session.commit()
+        return values
+
+
+api.add_resource(DisplayPreferences, '/user/preferences')
+
+
 class UserAPI:        
     class _ID(Resource):  # Individual identification API operation
         @token_required()

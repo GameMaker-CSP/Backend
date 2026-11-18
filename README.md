@@ -491,3 +491,9 @@ Built by the **UESL / MalwareMadness** team for AP CSP 2025–2026.
 - Game API, scores, comments — teammate contribution
 - Socket.IO multiplayer — teammate contribution
 - Microblog, social posts — teammate contribution
+
+### Deploy and verify account preferences
+
+The root Docker Compose service reads the checkout's existing `.env`. Preserve its secret key and database settings, and use `IS_PRODUCTION=true` on HTTPS. With the default SQLite configuration, the database lives under the mounted `instance/volumes` directory. With a configured database URL or MySQL connection, keep using that database. Startup creates missing tables, including `uesl_display_preferences`.
+
+From the active Cockpit checkout, run `git pull --ff-only origin main && docker compose up -d --build --no-deps web`. Check `curl -fsS http://127.0.0.1:8540/api/health`. Sign into a test account, change its display name in Profile, then save a theme, language and head movement preference. Sign into the same account in another browser and verify all four settings. Head movement starts from Help on each device and requires camera permission. Test with a different account to confirm its settings remain independent.

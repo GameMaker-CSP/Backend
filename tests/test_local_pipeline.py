@@ -19,6 +19,27 @@ from main import app
 
 
 class LocalPipelineTests(unittest.TestCase):
+    def test_display_preferences_follow_the_account(self):
+        path = '/api/user/preferences'
+        settings = {'theme': 'Ocean', 'language': 'es', 'nod': True}
+        guest = app.test_client()
+        self.assertEqual(guest.put(path, json=settings).status_code, 401)
+        for uid in ('theme-owner', 'theme-other'):
+            self.assertIn(guest.post('/api/user', json={'uid': uid, 'name': uid,
+                          'password': 'Test-Preferences-2026'}).status_code, (200, 201))
+
+        def sign_in(uid):
+            device = app.test_client()
+            self.assertEqual(device.post('/api/otp/send', json={'uid': uid,
+                             'password': 'Test-Preferences-2026'}).status_code, 200)
+            return device
+
+        desktop = sign_in('theme-owner')
+        self.assertEqual(desktop.put(path, json=settings).json, settings)
+        self.assertEqual(desktop.put(path, json={**settings, 'nod': 'false'}).status_code, 400)
+        self.assertEqual(sign_in('theme-owner').get(path).json, settings)
+        self.assertFalse(sign_in('theme-other').get(path).json['nod'])
+
     def test_health_and_browser_preflight(self):
         client = app.test_client()
         response = client.get('/api/health')
