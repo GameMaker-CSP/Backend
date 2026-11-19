@@ -32,6 +32,7 @@ from api.game_api import game_api
 from api.game_social_api import game_social_api
 from api.presence_api import presence_api
 from api.friendship_api import friendship_api
+from api.community_events import community_events
 import api.multiplayer  # registers Socket.IO event handlers
 #from api.announcement import announcement_api ##temporary revert
 
@@ -97,6 +98,7 @@ app.register_blueprint(game_api)
 app.register_blueprint(game_social_api)
 app.register_blueprint(presence_api)
 app.register_blueprint(friendship_api)
+app.register_blueprint(community_events)
 # app.register_blueprint(announcement_api) ##temporary revert
 
 # Startup initialization — create tables and seed default data on first run
