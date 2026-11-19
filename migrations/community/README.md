@@ -31,3 +31,36 @@ The identifiers below are examples. No real event or attendee is seeded.
 Store one cover selection per occurrence when the photo schema lands. Account settings remain in the existing OCS persona collection. An RSVP records intent; attendance records staff check-in. Keep attendance private to the account and authorized staff. Confirm retention with UESL before collecting real records.
 
 Review with the feature owners before expanding the schema: confirm event types, who can publish and check in attendees, and whether cancelled events remain publicly visible. The SQLite migration is an isolated proposal; the test applies and reverses it only in memory.
+
+## Event albums and discussion
+
+`api/community_events.py` uses the same `uesl_event` columns as `001`; the
+application’s normal SQLAlchemy startup creates missing tables. It adds
+`uesl_event_details` (description and one selected cover), `uesl_event_photo`,
+and `uesl_event_comment`. There are no production seed events. A cancelled
+occurrence stays publicly readable but is excluded from the upcoming feed.
+
+The `/api/events` endpoints reuse the normal OCS session and configured staff
+roles. The staff endpoints list drafts (`GET /manage`), accept multipart photo
+uploads (`POST /<id>/photos`), and save a complete order and cover together
+(`PUT /<id>/photos`). The public album index (`GET /api/events?albums=true`)
+includes each album's selected `cover` metadata, or `null` if unset. Private permission references and draft images are
+available only to staff. The frontend uses `X-Origin: client` and the existing
+allowed-origin policy for mutations. See the route tests for examples.
+
+The app decodes still JPEG, PNG and WebP images (up to 4 MiB and 24 megapixels),
+strips metadata, and transactionally stores normalized JPEG display and
+thumbnail bytes in the same database as the album. The original names and
+files are never retained. Invalid uploads leave no files or rows. Removing an
+image deletes its bytes and clears its cover selection if needed. Back up the
+configured database, including BLOBs (with the existing persistent `instance`
+volume for SQLite), and include it in restore tests. Backups may temporarily
+retain removed content; follow UESL’s agreed retention and access policy.
+The active HTTPS proxy needs to accept 5 MiB for multipart overhead; the
+checked-in `deploy/ueslgame-api-location.conf` sets this for API requests.
+
+Event discussion reads are paginated (`after=<last ID>`), and replies are
+limited to one level. Writes derive the author from the active account.
+Removal clears the text but keeps a tombstone so replies stay in context.
+Only the author may edit; both authors and staff may remove. This is scoped
+to the event and does not use chat or a WebSocket.
