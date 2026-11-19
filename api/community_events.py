@@ -127,16 +127,26 @@ def event_data(event, include_description=False):
 
 def event_list(staff=False):
     query = Event.query
+    albums = request.args.get("albums") == "true"
     if not staff:
         query = query.filter(Event.state != "draft")
     if request.args.get("upcoming") == "true":
         query = query.filter(Event.state == "published", Event.ends_at_utc >= now())
-    if request.args.get("albums") == "true":
+    if albums:
         query = query.filter(db.exists().where(EventPhoto.event_id == Event.id))
     limit = max(1, min(request.args.get("limit", 50, type=int), 100))
     offset = max(0, request.args.get("offset", 0, type=int))
-    return jsonify([event_data(event) for event in query.order_by(Event.starts_at_utc, Event.id)
-                    .offset(offset).limit(limit)])
+    events = query.order_by(Event.starts_at_utc, Event.id).offset(offset).limit(limit).all()
+    result = [event_data(event) for event in events]
+    if albums and not staff and result:
+        # Load only the selected covers for this page; image bytes remain deferred.
+        covers = {photo.event_id: photo_data(photo) for photo in EventPhoto.query
+                  .join(EventDetails, (EventDetails.cover_id == EventPhoto.id)
+                        & (EventDetails.event_id == EventPhoto.event_id))
+                  .filter(EventPhoto.event_id.in_([event.id for event in events]))}
+        for entry in result:
+            entry["cover"] = covers.get(entry["id"])
+    return jsonify(result)
 
 
 @community_events.get("")

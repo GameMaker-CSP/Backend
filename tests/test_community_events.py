@@ -77,6 +77,7 @@ def run_isolated():
     staff_image = staff.get(a + "/photos/manage").get_json()["photos"][0]["thumbnail"]
     assert staff.get(staff_image).status_code == 200
     assert member.get(staff_image).status_code == 403
+    assert guest.get("/api/events?albums=true").get_json() == []
     assert staff.put(a + "/photos", headers=headers, json={"order": [first["id"], unrelated["id"]]}).status_code == 409
     assert staff.delete(a + f"/photos/{unrelated['id']}", headers=headers).status_code == 404
     for route in (a, b):
@@ -87,11 +88,14 @@ def run_isolated():
     assert public["cover_id"] == second["id"]
     assert [p["id"] for p in public["photos"]] == [second["id"], first["id"]]
     assert all("permission" not in p for p in public["photos"])
+    covers = guest.get("/api/events?albums=true").get_json()
+    assert covers[0]["cover"] == public["photos"][0] and covers[1]["cover"] is None
     response = guest.get(first["thumbnail"])
     assert response.mimetype == "image/jpeg"
     assert Image.open(BytesIO(response.data)).width == 640
     assert staff.delete(a + f"/photos/{second['id']}", headers=headers).status_code == 204
     assert guest.get(a + "/photos").get_json()["cover_id"] is None
+    assert guest.get("/api/events?albums=true").get_json()[0]["cover"] is None
     assert guest.get(second["image"]).status_code == 404
 
     path = a + "/comments"

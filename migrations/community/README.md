@@ -43,7 +43,8 @@ occurrence stays publicly readable but is excluded from the upcoming feed.
 The `/api/events` endpoints reuse the normal OCS session and configured staff
 roles. The staff endpoints list drafts (`GET /manage`), accept multipart photo
 uploads (`POST /<id>/photos`), and save a complete order and cover together
-(`PUT /<id>/photos`). Private permission references and draft images are
+(`PUT /<id>/photos`). The public album index (`GET /api/events?albums=true`)
+includes each album's selected `cover` metadata, or `null` if unset. Private permission references and draft images are
 available only to staff. The frontend uses `X-Origin: client` and the existing
 allowed-origin policy for mutations. See the route tests for examples.
 
@@ -55,6 +56,8 @@ image deletes its bytes and clears its cover selection if needed. Back up the
 configured database, including BLOBs (with the existing persistent `instance`
 volume for SQLite), and include it in restore tests. Backups may temporarily
 retain removed content; follow UESL’s agreed retention and access policy.
+The active HTTPS proxy needs to accept 5 MiB for multipart overhead; the
+checked-in `deploy/ueslgame-api-location.conf` sets this for API requests.
 
 Event discussion reads are paginated (`after=<last ID>`), and replies are
 limited to one level. Writes derive the author from the active account.
