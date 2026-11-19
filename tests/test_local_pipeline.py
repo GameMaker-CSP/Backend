@@ -43,7 +43,7 @@ class LocalPipelineTests(unittest.TestCase):
         extended = path + '?extended=1'
         options = {'size': 19, 'bg': '#123456', 'fontName': 'Georgia', 'ruler': True,
                    'mode': 'cursor', 'ttsVolume': 0, 'buttonStyle': 'pill'}
-        self.assertEqual(desktop.put(path, json={**settings, 'options':options}).json['options'], options)
+        self.assertEqual(desktop.put(path, json={**settings, 'theme':'Sunset', 'options':options}).json['options'], options)
         self.assertEqual(desktop.put(path, json=settings).status_code, 200)
         self.assertEqual(desktop.put(path, json={**settings, 'options':{'size':200}}).status_code, 400)
         self.assertEqual(sign_in('theme-owner').get(extended).json['options'], options)

@@ -80,7 +80,7 @@ class DisplayPreferences(Resource):
         if not isinstance(data, dict):
             return {'message': 'Expected preference settings'}, 400
         theme, language, nod = (data.get(key) for key in ('theme', 'language', 'nod'))
-        if (theme not in ('Site Default', 'Light', 'Green', 'Midnight', 'Sepia', 'Cyberpunk', 'Ocean')
+        if (theme not in ('Site Default', 'Light', 'Green', 'Midnight', 'Sepia', 'Cyberpunk', 'Ocean', 'Sunset')
                 or language not in ('', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh-CN', 'zh-TW', 'ja', 'ko', 'ar', 'hi', 'vi', 'th', 'nl', 'pl', 'tr', 'uk', 'he', 'fa')
                 or type(nod) is not bool):
             return {'message': 'Invalid display preferences'}, 400
