@@ -95,6 +95,8 @@ app.register_blueprint(post_api)  # Register the social media post API
 app.register_blueprint(otp_api)
 app.register_blueprint(game_api)
 app.register_blueprint(game_social_api)
+from api.community import community
+app.register_blueprint(community)
 app.register_blueprint(presence_api)
 app.register_blueprint(friendship_api)
 # app.register_blueprint(announcement_api) ##temporary revert
@@ -111,6 +113,10 @@ with app.app_context():
                 "Legacy games schema detected. Back up the database and migrate it "
                 "before starting this version; no saved games have been deleted."
             )
+    if _inspector.has_table('uesl_event') and 'description' not in {c['name'] for c in _inspector.get_columns('uesl_event')}:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE uesl_event ADD COLUMN description TEXT"))
+            connection.execute(text("UPDATE uesl_event SET description='' WHERE description IS NULL"))
     if _inspector.has_table('users'):
         columns = {col['name'] for col in _inspector.get_columns('users')}
         with db.engine.begin() as connection:

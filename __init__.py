@@ -36,10 +36,7 @@ login_manager.init_app(app)
 
 
 # Allowed servers for cross-origin resource sharing (CORS)
-cors = CORS(
-   app,
-   supports_credentials=True,
-   origins=[origin.strip() for origin in os.environ['CORS_ORIGINS'].split(',') if origin.strip()] if os.environ.get('CORS_ORIGINS') else [
+app.config["COMMUNITY_ORIGINS"] = [origin.strip() for origin in os.environ['CORS_ORIGINS'].split(',') if origin.strip()] if os.environ.get('CORS_ORIGINS') else [
        'http://localhost:4700',
        'http://127.0.0.1:4700',
        'http://localhost:4500',
@@ -53,8 +50,12 @@ cors = CORS(
        'https://unified-esports-league.github.io',
        'https://uesl.io',
        'https://ueslgame.opencodingsociety.com',
-   ],
-   methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+   ]
+cors = CORS(
+   app,
+   supports_credentials=True,
+   origins=app.config["COMMUNITY_ORIGINS"],
+   methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 )
 
 # Flask-RESTful returns 405 for OPTIONS before Flask-CORS can add headers.

@@ -49,6 +49,63 @@ class LocalPipelineTests(unittest.TestCase):
         self.assertEqual(sign_in('theme-owner').get(extended).json['options'], options)
         self.assertEqual(sign_in('theme-other').get(extended).json['options'], {})
 
+    def test_community_event_lifecycle(self):
+        from PIL import Image
+        from model.user import User
+        public, admin, member = (app.test_client() for _ in range(3))
+        for client, prefix in ((admin, 'ADMIN'), (member, 'USER')):
+            response = client.post('/login', data={'username': app.config[prefix+'_UID'], 'password': app.config[prefix+'_PASSWORD']})
+            self.assertEqual(response.status_code, 302)
+        base = '/api/community'
+        events = base+'/events'
+        data = dict(title='Test meetup', location='Fixture venue', description='Test gathering',
+                    timezone='America/Los_Angeles', event_type='Social', starts_at_utc='2030-05-04T16:00:00-07:00',
+                    ends_at_utc='2030-05-04T18:00:00-07:00')
+        self.assertEqual(public.post(events,json=data).status_code,401)
+        self.assertEqual(member.post(events,json=data).status_code,403)
+        self.assertEqual(admin.post(events,json=data,headers={"Origin":"https://untrusted.example"}).status_code,403)
+        self.assertEqual(admin.post(events,json=dict(data,ends_at_utc=data['starts_at_utc'])).status_code,400)
+        series = admin.post(base+'/series',json={'title':'Test series'}).json
+        response = admin.post(events,json=dict(data,series_id=series['id']))
+        self.assertEqual(response.status_code,201)
+        event_id = response.json['id']
+        event = f'{events}/{event_id}'
+        self.assertEqual(public.get(event).status_code,404)
+        self.assertEqual(admin.patch(event,json={'state':'published'}).status_code,200)
+        self.assertIn(event_id,[e['id'] for e in public.get(events+'?event_type=Social').json])
+        self.assertEqual(public.get(events+'?until=2020-01-01T00:00:00Z').json,[])
+        for _ in range(2):
+            self.assertTrue(member.put(event+'/rsvp',json={'attending':True}).json['attending'])
+        roster = admin.get(event+'/roster').json
+        self.assertEqual(len(roster),1)
+        self.assertEqual(member.get(event+'/roster').status_code,403)
+        self.assertTrue(admin.put(event+'/roster/'+str(roster[0]['user_id']),json={'checked_in':True}).json['checked_in'])
+        self.assertTrue(member.get(base+'/my-events').json[0]['checked_in'])
+        self.assertEqual(admin.get(base+'/my-events').json,[])
+        comment = member.post(event+'/comments',json={'body':'Fixture comment'}).json
+        self.assertEqual(admin.post(event+'/comments',json={'parent_id':comment['id'],'body':'Reply'}).status_code,201)
+        self.assertEqual(member.patch(event+'/comments/'+str(comment['id']),json={'body':'Edited'}).status_code,200)
+        self.assertEqual(admin.delete(event+'/comments/'+str(comment['id'])).status_code,200)
+        self.assertIsNone(public.get(event+'/comments').json[0]['body'])
+        photo=dict(caption='Event photo', alt='Fixture',credit='Fixture author',permission='yes')
+        self.assertEqual(admin.post(event+'/photos',data=dict(photo,image=(io.BytesIO(b'no image'),'bad.jpg'))).status_code,400)
+        image = io.BytesIO()
+        Image.new('RGB',(8,8)).save(image,'PNG')
+        image.seek(0)
+        response = admin.post(event+'/photos',data=dict(photo,image=(image,'test.png')))
+        self.assertEqual(response.status_code,201)
+        picture = response.json
+        self.assertEqual(public.get(picture['image']).mimetype,'image/jpeg')
+        self.assertEqual(admin.patch(base+'/photos/'+str(picture['id']),json={'position':1,'cover':True}).status_code,200)
+        self.assertEqual(public.get(event).json['cover_photo_id'],picture['id'])
+        self.assertEqual(public.get(base+'/photos?event_id='+str(event_id)).json[0]['caption'],'Event photo')
+        self.assertEqual(admin.patch(event,json={'state':'cancelled'}).status_code,200)
+        self.assertEqual(member.put(event+'/rsvp',json={'attending':True}).status_code,409)
+        self.assertEqual(admin.patch(event,json={'state':'draft'}).status_code,200)
+        self.assertEqual(public.get(picture['image']).status_code,404)
+        self.assertEqual(public.get(base+'/photos').json,[])
+        self.assertEqual(admin.delete(base+'/photos/'+str(picture['id'])).status_code,204)
+
     def test_manager_roles_accounts_and_guest_window(self):
         from unittest.mock import patch
         from model.user import User
