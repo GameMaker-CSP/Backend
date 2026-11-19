@@ -202,12 +202,27 @@ def photo_data(photo):
     return dict(**fields(photo, "id event_id caption alt credit position"), image=f"/api/community/photos/{photo.id}/image")
 
 
-@community.get("/photos")
-def photos():
-    query = Photo.query.join(Event).filter(Event.state.in_(("published", "cancelled")))
+def photo_listing(query, staff_view=False):
     if "event_id" in request.args:
         query = query.filter(Photo.event_id == request.args["event_id"])
-    return jsonify([photo_data(p) for p in page(query.order_by(Photo.position, Photo.id))])
+    records = []
+    for photo in page(query.order_by(Photo.position, Photo.id)):
+        record = photo_data(photo)
+        if staff_view:
+            record["image"] = f"/api/community/staff/photos/{photo.id}/image"
+        records.append(record)
+    return jsonify(records)
+
+
+@community.get("/photos")
+def photos():
+    return photo_listing(Photo.query.join(Event).filter(Event.state.in_(("published", "cancelled"))))
+
+
+@community.get("/staff/photos")
+@staff
+def staff_photos():
+    return photo_listing(Photo.query, staff_view=True)
 
 
 @community.get("/photos/<int:photo_id>/image")
@@ -215,6 +230,15 @@ def image(photo_id):
     photo = Photo.query.get_or_404(photo_id)
     visible(photo.event_id)
     return send_file(BytesIO(photo.image), mimetype="image/jpeg")
+
+
+@community.get("/staff/photos/<int:photo_id>/image")
+@staff
+def staff_image(photo_id):
+    photo = Photo.query.get_or_404(photo_id)
+    response = send_file(BytesIO(photo.image), mimetype="image/jpeg")
+    response.cache_control.no_store = True
+    return response
 
 
 @community.post("/events/<int:event_id>/photos")

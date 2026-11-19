@@ -104,6 +104,9 @@ class LocalPipelineTests(unittest.TestCase):
         self.assertEqual(admin.patch(event,json={'state':'draft'}).status_code,200)
         self.assertEqual(public.get(picture['image']).status_code,404)
         self.assertEqual(public.get(base+'/photos').json,[])
+        preview = admin.get(base+'/staff/photos?event_id='+str(event_id)).json[0]['image']
+        self.assertEqual(admin.get(preview).mimetype,'image/jpeg')
+        self.assertEqual(member.get(preview).status_code,403)
         self.assertEqual(admin.delete(base+'/photos/'+str(picture['id'])).status_code,204)
 
     def test_manager_roles_accounts_and_guest_window(self):
