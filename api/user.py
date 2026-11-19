@@ -1,3 +1,4 @@
+import re
 import jwt
 from flask import Blueprint, app, request, jsonify, current_app, Response, g
 from flask_restful import Api, Resource # used for REST API building
@@ -24,12 +25,53 @@ class AccountDisplayPreferences(db.Model):
     nod = db.Column(db.Boolean, nullable=False)
 
 
+class PortfolioPreferences(db.Model):
+    __tablename__ = 'uesl_portfolio_preferences'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    options = db.Column(db.JSON, nullable=False)
+
+
+def valid_portfolio_options(options):
+    if not isinstance(options, dict):
+        return False
+    colors = {'bg', 'text', 'accent', 'selectionColor'}
+    switches = {'focus', 'ruler', 'dyslexia', 'highContrast'}
+    ranges = {'size': (12, 22), 'ttsRate': (.5, 2), 'ttsPitch': (.5, 2),
+              'ttsVolume': (0, 1), 'sensitivity': (.1, .9)}
+    choices = {'fontName': ('System', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Georgia', 'Source Code Pro'),
+               'buttonStyle': ('rounded', 'square', 'pill'), 'mode': ('scroll', 'cursor')}
+    for key, value in options.items():
+        if key in colors:
+            valid = isinstance(value, str) and re.fullmatch(r'#[0-9a-fA-F]{6}', value)
+        elif key in switches:
+            valid = type(value) is bool
+        elif key in ranges:
+            low, high = ranges[key]
+            valid = type(value) in (float, int) and low <= value <= high
+        elif key in choices:
+            valid = value in choices[key]
+        elif key == 'readingSize':
+            valid = type(value) in (float, int) and (value == 0 or 10 <= value <= 28)
+        elif key == 'ttsVoice':
+            valid = isinstance(value, str) and len(value) <= 200
+        else:
+            return False
+        if not valid:
+            return False
+    return True
+
+
 class DisplayPreferences(Resource):
     @token_required()
     def get(self):
         row = db.session.get(AccountDisplayPreferences, g.current_user.id)
-        return {'theme': row.theme, 'language': row.language, 'nod': row.nod} if row else {
+        result = {'theme': row.theme, 'language': row.language, 'nod': row.nod} if row else {
             'theme': 'Site Default', 'language': '', 'nod': False}
+
+        if request.args.get('extended') == '1':
+            detail = db.session.get(PortfolioPreferences, g.current_user.id)
+            result['options'] = detail.options if detail else {}
+        return result
 
     @token_required()
     def put(self):
@@ -42,6 +84,8 @@ class DisplayPreferences(Resource):
                 or language not in ('', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'zh-CN', 'zh-TW', 'ja', 'ko', 'ar', 'hi', 'vi', 'th', 'nl', 'pl', 'tr', 'uk', 'he', 'fa')
                 or type(nod) is not bool):
             return {'message': 'Invalid display preferences'}, 400
+        if 'options' in data and not valid_portfolio_options(data['options']):
+            return {'message': 'Invalid portfolio preferences'}, 400
         values = dict(theme=theme, language=language, nod=nod)
         row = AccountDisplayPreferences(user_id=g.current_user.id, **values)
         if db.engine.dialect.name == 'sqlite':
@@ -49,6 +93,14 @@ class DisplayPreferences(Resource):
             db.session.execute(stmt.on_conflict_do_update(index_elements=['user_id'], set_=values))
         else:
             db.session.merge(row)
+        if 'options' in data:
+            detail = dict(user_id=g.current_user.id, options=data['options'])
+            if db.engine.dialect.name == 'sqlite':
+                stmt = insert(PortfolioPreferences).values(**detail)
+                db.session.execute(stmt.on_conflict_do_update(index_elements=['user_id'], set_={'options': stmt.excluded.options}))
+            else:
+                db.session.merge(PortfolioPreferences(**detail))
+            values['options'] = data['options']
         db.session.commit()
         return values
 

@@ -40,6 +40,15 @@ class LocalPipelineTests(unittest.TestCase):
         self.assertEqual(sign_in('theme-owner').get(path).json, settings)
         self.assertFalse(sign_in('theme-other').get(path).json['nod'])
 
+        extended = path + '?extended=1'
+        options = {'size': 19, 'bg': '#123456', 'fontName': 'Georgia', 'ruler': True,
+                   'mode': 'cursor', 'ttsVolume': 0, 'buttonStyle': 'pill'}
+        self.assertEqual(desktop.put(path, json={**settings, 'options':options}).json['options'], options)
+        self.assertEqual(desktop.put(path, json=settings).status_code, 200)
+        self.assertEqual(desktop.put(path, json={**settings, 'options':{'size':200}}).status_code, 400)
+        self.assertEqual(sign_in('theme-owner').get(extended).json['options'], options)
+        self.assertEqual(sign_in('theme-other').get(extended).json['options'], {})
+
     def test_manager_roles_accounts_and_guest_window(self):
         from unittest.mock import patch
         from model.user import User
