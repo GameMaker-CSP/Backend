@@ -12,8 +12,8 @@ target = Path(__file__).with_name('.env')
 values = {key: secrets.token_urlsafe(32) for key in (
     'SECRET_KEY', 'DEFAULT_PASSWORD', 'ADMIN_PASSWORD', 'TEACHER_PASSWORD',
     'USER_PASSWORD', 'MY_PASSWORD')}
-values.update(IS_PRODUCTION=str(mode == 'production').lower(), USER_UID='toby', ADMIN_UID='hop',
-              USER_NAME='Thomas Edison', ADMIN_USER='Grace Hopper')
+values.update(IS_PRODUCTION=str(mode == 'production').lower(), USER_UID='hop', ADMIN_UID='toby',
+              USER_NAME='Grace Hopper', ADMIN_USER='Thomas Edison')
 try:
     descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 except FileExistsError:

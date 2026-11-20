@@ -50,22 +50,22 @@ for route in ('/api/authenticate', '/api/otp/send'):
                                         capture_output=True, text=True, timeout=60)
                 self.assertEqual(result.returncode, 0, result.stderr)
             run('from main import app')
-            env.update(USER_UID='toby', USER_NAME='Thomas Edison', ADMIN_UID='hop', ADMIN_USER='Grace Hopper')
+            env.update(USER_UID='hop', USER_NAME='Grace Hopper', ADMIN_UID='toby', ADMIN_USER='Thomas Edison')
             run("""
 from main import app, db, User
 with app.app_context():
     assert User.query.filter_by(_uid='original-member').one()
-    for key, uid, role in [('USER', 'toby', 'User'), ('ADMIN', 'hop', 'Admin')]:
+    for key, uid, role in [('USER', 'hop', 'User'), ('ADMIN', 'toby', 'Admin')]:
         account = User.query.filter_by(_uid=uid).one()
         assert account.role == role and account.is_password(app.config[key + '_PASSWORD'])
-    toby = User.query.filter_by(_uid='toby').one()
-    toby.name = 'New display name'
-    toby.set_password('changed-in-manager')
+    hop = User.query.filter_by(_uid='hop').one()
+    hop.name = 'New display name'
+    hop.set_password('changed-in-manager')
     db.session.commit()
 """)
             run("""
 from main import app, User
 with app.app_context():
-    toby = User.query.filter_by(_uid='toby').one()
-    assert toby.name == 'New display name' and toby.is_password('changed-in-manager')
+    hop = User.query.filter_by(_uid='hop').one()
+    assert hop.name == 'New display name' and hop.is_password('changed-in-manager')
 """)

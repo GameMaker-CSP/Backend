@@ -182,8 +182,8 @@ rows are preserved. A legacy incompatible games table causes an explicit
 startup error; back up and migrate it instead of deleting it.
 
 The root Compose service reads the private `.env` next to `docker-compose.yml`.
-Set `USER_UID=toby`, `USER_NAME='Thomas Edison'`, `ADMIN_UID=hop`, and
-`ADMIN_USER='Grace Hopper'`. Set private `USER_PASSWORD` and `ADMIN_PASSWORD`
+Set `USER_UID=hop`, `USER_NAME='Grace Hopper'`, `ADMIN_UID=toby`, and
+`ADMIN_USER='Thomas Edison'`. Set private `USER_PASSWORD` and `ADMIN_PASSWORD`
 values there. Use unique passwords of at least 20 characters on the server.
 Rebuild and recreate the web service after editing its environment.
 Startup creates missing configured accounts even in an existing database.

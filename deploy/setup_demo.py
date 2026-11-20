@@ -13,8 +13,8 @@ import urllib.request
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ROLES = (("USER", "USER_NAME", "toby", "Thomas Edison", "User"),
-         ("ADMIN", "ADMIN_USER", "hop", "Grace Hopper", "Admin"))
+ROLES = (("USER", "USER_NAME", "hop", "Grace Hopper", "User"),
+         ("ADMIN", "ADMIN_USER", "toby", "Thomas Edison", "Admin"))
 
 
 def new_passwords():
@@ -38,13 +38,16 @@ ROTATE = """
 import os
 from main import app, db, User
 with app.app_context():
-    for prefix, uid, role in [('USER', 'toby', 'User'), ('ADMIN', 'hop', 'Admin')]:
+    for prefix, uid, role in [('USER', 'hop', 'User'), ('ADMIN', 'toby', 'Admin')]:
         user = User.query.filter_by(_uid=uid).one()
-        if user.role != role or not user.is_active:
+        if os.environ[prefix + '_UID'] != uid or user.role not in ('Admin', 'User') or not user.is_active:
             raise SystemExit(f'Unexpected role or inactive account: {uid}. No passwords updated.')
         password = os.environ[prefix + '_PASSWORD']
-        if not user.is_password(password):
+        password_changed = not user.is_password(password)
+        if password_changed:
             user.set_password(password)
+        if user.role != role or password_changed:
+            user.role = role
             user.token_version = (user.token_version or 0) + 1
     db.session.commit()
 """
@@ -81,7 +84,10 @@ def main():
     os.chdir(ROOT)
     compose = ["docker", "compose"]
     config = json.loads(subprocess.check_output(compose + ["config", "--format", "json"]))
-    settings = configure(ROOT / ".env", config["services"]["web"]["environment"],
+    current = config["services"]["web"]["environment"]
+    if current.get("ADMIN_UID") == "hop" and not args.rotate:
+        raise SystemExit("Use --rotate to switch the two roles and replace their old credentials.")
+    settings = configure(ROOT / ".env", current,
                          new_passwords() if args.rotate else None)
     subprocess.run(compose + ["up", "-d", "--build", "--force-recreate", "--no-deps", "web"], check=True)
     for _ in range(60):
