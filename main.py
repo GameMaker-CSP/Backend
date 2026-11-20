@@ -37,7 +37,7 @@ import api.multiplayer  # registers Socket.IO event handlers
 
 # database Initialization functions
 from model import account_types, guest_window
-from model.user import User, initUsers, ensure_admin
+from model.user import User, initUsers, ensure_admin, ensure_configured_accounts
 from model.friendship import FriendRequest
 from model.user import Section;
 from model.github import GitHubUser
@@ -129,6 +129,7 @@ with app.app_context():
     db.create_all()   # creates any missing tables (including new games schema)
     if User.query.count() == 0:
         initUsers()   # only seed on first run — avoids duplicate/integrity errors on restart
+    ensure_configured_accounts()
     from model.gamemaker_personas import init_gamemaker_personas
     init_gamemaker_personas()
     initJokes()

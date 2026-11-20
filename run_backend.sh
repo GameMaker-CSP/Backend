@@ -23,7 +23,7 @@ from pathlib import Path
 
 config = Path('.env.example').read_text().replace(
     'replace-with-a-random-local-secret', secrets.token_urlsafe(48)
-)
+).replace('replace-with-a-random-local-admin-password', secrets.token_urlsafe(32))
 fd = os.open('.env', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
 with os.fdopen(fd, 'w') as output:
     output.write(config)

@@ -859,6 +859,26 @@ def initUsers():
         u3.add_section(s4)
 
 
+def ensure_configured_accounts():
+    """Provision explicitly configured identities on an existing database."""
+    for prefix, name_key, role in (("USER", "USER_NAME", "User"), ("ADMIN", "ADMIN_USER", "Admin")):
+        uid_key, password_key = prefix + "_UID", prefix + "_PASSWORD"
+        if not os.environ.get(uid_key) or not os.environ.get(password_key):
+            continue
+        uid = app.config[uid_key]
+        if User.query.filter_by(_uid=uid).first() is not None:
+            continue
+        user = User(name=app.config[name_key], uid=uid, password=app.config[password_key],
+                    pfp=app.config[prefix + "_PFP"], role=role)
+        db.session.add(user)
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            if User.query.filter_by(_uid=uid).first() is None:
+                raise
+
+
 def ensure_admin():
     """
     Enforce that the configured admin account (ADMIN_UID) always has dev mode on.
