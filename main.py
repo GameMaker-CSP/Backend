@@ -32,6 +32,7 @@ from api.game_api import game_api
 from api.game_social_api import game_social_api
 from api.presence_api import presence_api
 from api.friendship_api import friendship_api
+from api.community_events import community_events
 import api.multiplayer  # registers Socket.IO event handlers
 #from api.announcement import announcement_api ##temporary revert
 
@@ -99,6 +100,7 @@ from api.community import community
 app.register_blueprint(community)
 app.register_blueprint(presence_api)
 app.register_blueprint(friendship_api)
+app.register_blueprint(community_events)
 # app.register_blueprint(announcement_api) ##temporary revert
 
 # Startup initialization — create tables and seed default data on first run
@@ -117,6 +119,9 @@ with app.app_context():
         with db.engine.begin() as connection:
             connection.execute(text("ALTER TABLE uesl_event ADD COLUMN description TEXT"))
             connection.execute(text("UPDATE uesl_event SET description='' WHERE description IS NULL"))
+    if _inspector.has_table('uesl_event_comment') and 'edited' not in {c['name'] for c in _inspector.get_columns('uesl_event_comment')}:
+        with db.engine.begin() as connection:
+            connection.execute(text("ALTER TABLE uesl_event_comment ADD COLUMN edited BOOLEAN NOT NULL DEFAULT FALSE"))
     if _inspector.has_table('users'):
         columns = {col['name'] for col in _inspector.get_columns('users')}
         with db.engine.begin() as connection:

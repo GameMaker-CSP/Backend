@@ -61,6 +61,7 @@ class Comment(db.Model):
     author = db.relationship("User")
     parent_id = db.Column(db.ForeignKey("uesl_event_comment.id"))
     body = db.Column(db.Text, nullable=False)
+    edited = db.Column(db.Boolean, nullable=False, default=False)
     removed = db.Column(db.Boolean, default=False, nullable=False)
     created = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -326,6 +327,7 @@ def write_comment(event_id, comment_id=None):
             comment.body = ""
         elif not comment.removed:
             comment.body = string(body().get("body"),2000)
+            comment.edited = True
         else:
             abort(409)
     db.session.commit()

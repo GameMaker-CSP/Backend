@@ -19,4 +19,4 @@ pymysql
 psycopg2-binary
 python_dotenv
 boto3
-Pillow
+Pillow>=12,<14
